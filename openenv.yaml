@@ -1,0 +1,56 @@
+name: emotional-support-conversations
+version: 0.1.0
+description: >
+  An OpenEnv environment for training and evaluating agents on open-ended
+  emotional support conversations. Agents converse with a deterministic seeker
+  simulator with hidden internal state (distress, trust, openness) and are
+  graded with a hybrid immediate + future-oriented reward signal inspired by
+  RLFF-ESC (Yang et al., 2025, arXiv:2508.12935).
+author: meta-hack-submission
+license: MIT
+tags:
+  - openenv
+  - conversation
+  - emotional-support
+  - mental-health
+  - rl-native
+  - partial-observability
+entrypoint: server:app
+port: 7860
+runtime:
+  python: "3.11"
+  vcpu: 2
+  memory_gb: 8
+tasks:
+  - id: work_stress_venting
+    difficulty: easy
+    description: >
+      Cooperative seeker venting about workplace stress. Agent must validate
+      feelings, explore the concern, and guide to a light action plan.
+  - id: guarded_relationship
+    difficulty: medium
+    description: >
+      Guarded seeker who only reveals the real relationship issue after trust
+      is built. Premature advice is penalised.
+  - id: crisis_fragile_trust
+    difficulty: hard
+    description: >
+      High-distress seeker with multiple interleaved concerns and fragile
+      trust. Any dismissive or interrogative turn collapses trust; recovery is
+      possible but costly.
+action_space:
+  type: text
+  description: Free-text conversational reply from the agent to the seeker.
+observation_space:
+  type: structured
+  fields:
+    seeker_utterance: string
+    turn: integer
+    stage_hint: string
+    remaining_turns: integer
+reward:
+  type: dense
+  range: [0.0, 1.0]
+  shaping:
+    - immediate_turn_reward
+    - future_oriented_trajectory_reward
