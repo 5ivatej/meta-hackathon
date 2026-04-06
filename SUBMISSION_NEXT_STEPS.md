@@ -1,12 +1,12 @@
 # Submission Next Steps
 
-This file is the short operational checklist for turning the current repo into
-a polished hackathon submission.
+This is the short operational checklist for turning the current repo into a
+polished hackathon submission.
 
-## 1. Run the local benchmark ladder
+## 1. Run the core deterministic benchmark ladder
 
-This gives you deterministic numbers for the baseline section and proves the
-rubric separates weak generic empathy from staged, task-aware behavior.
+This proves the rubric separates weak generic empathy from staged,
+task-aware behavior.
 
 ```powershell
 py -3 benchmark.py
@@ -17,12 +17,25 @@ Artifacts written:
 - `results/local_benchmarks.md`
 - `results/local_benchmarks.json`
 
-After running:
+## 2. Run the deterministic skills/agents benchmark
 
-- copy the summary table from `results/local_benchmarks.md`
-- paste the final baseline numbers into [README.md](C:\Users\Gokul nandan T M\Desktop\personalprojects\meta\meta-hackathon\README.md)
+This gives you the policy-side agentic story without changing the environment.
 
-## 2. Run the mandatory hackathon stdout-contract baseline
+```powershell
+py -3 benchmark_agentic.py
+```
+
+Artifacts written:
+
+- `results/agentic_benchmarks.md`
+- `results/agentic_benchmarks.json`
+
+After running steps 1 and 2:
+
+- copy the summary numbers into [README.md](C:\Users\Gokul nandan T M\Desktop\personalprojects\meta\meta-hackathon\README.md)
+- keep both the rubric ladder and the skill-routed results in the final submission
+
+## 3. Run the mandatory hackathon stdout-contract baseline
 
 This is the script the submission already exposes.
 
@@ -36,7 +49,7 @@ py -3 inference.py
 
 Use this when you want the strict `[START] / [STEP] / [END]` output format.
 
-## 3. Run the Markdown-writing LLM benchmark
+## 4. Run the Markdown-writing LLM benchmark
 
 Use this when you want a reusable results file for the README or final report.
 
@@ -53,29 +66,54 @@ Artifacts written:
 - `results/llm_benchmark.md`
 - `results/llm_benchmark.json`
 
-## 4. Replace the `TBD` results table in the README
+## 5. Run the skill-routed LLM benchmark
+
+Use this when you want an explicit skills/agents baseline with route traces.
+You can use a local OpenAI-compatible endpoint here during development.
+
+```powershell
+$env:API_BASE_URL="http://localhost:11434/v1"
+$env:MODEL_NAME="qwen2.5:7b-instruct"
+$env:API_KEY="ollama"
+$env:ESC_ENV_URL="http://localhost:7860"
+py -3 benchmark_agentic_llm.py
+```
+
+For the final Hugging Face run, swap in your deployment endpoint and token.
+
+Artifacts written:
+
+- `results/agentic_llm_benchmark.md`
+- `results/agentic_llm_benchmark.json`
+
+## 6. Replace the `TBD` rows in the README
 
 Update the `Baseline scores` section in [README.md](C:\Users\Gokul nandan T M\Desktop\personalprojects\meta\meta-hackathon\README.md) with:
 
 - deterministic local baselines from `benchmark.py`
+- deterministic skill-routed baseline from `benchmark_agentic.py`
 - one real LLM baseline from `benchmark_llm.py`
+- one real or local skill-routed LLM baseline from `benchmark_agentic_llm.py`
 
-Recommended final table:
+Recommended final ladder:
 
 - `generic_template`
 - `validation_only`
 - `stage_aware_heuristic`
+- `skill_routed_deterministic`
 - one real LLM baseline
+- one skill-routed LLM baseline
 
-## 5. Add one short benchmark narrative to the README
+## 7. Add one short benchmark narrative to the README
 
 Keep it brief. Include:
 
 - the generic repeated empathy template no longer succeeds
 - the stage-aware heuristic completes all tasks
-- the crisis task requires an explicit safety-aware finish
+- the skill-routed policy keeps similar performance while exposing turn-level routing decisions
+- the hard task requires an explicit safety-aware finish
 
-## 6. Smoke-test the deployable artifact
+## 8. Smoke-test the deployable artifact
 
 Before submitting, verify both local and containerized runs.
 
@@ -92,20 +130,21 @@ Then hit:
 - `POST /step`
 - `GET /state`
 
-## 7. Optional but high-value polish
+## 9. Optional but high-value polish
 
 If you still have time, these are the best improvements:
 
 - add one screenshot or short GIF of a successful hard-task trajectory
 - add a tiny `Why this benchmark is hard` section to the README
-- add one extra adversarial baseline later, only if the current docs/results are already polished
+- add one short ablation note comparing plain LLM vs skill-routed LLM
 
-## 8. Final pre-submit check
+## 10. Final pre-submit check
 
 Make sure these are true:
 
 - local benchmark artifacts exist in `results/`
-- one LLM benchmark artifact exists in `results/`
+- agentic benchmark artifacts exist in `results/`
+- at least one LLM benchmark artifact exists in `results/`
 - README contains real numbers, not `TBD`
 - Docker build works
 - the hard task is only successful when safety support is referenced
