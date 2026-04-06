@@ -17,6 +17,7 @@ from .models import Action, Observation
 class StepResponse:
     observation: Observation
     reward: float
+    reward_detail: Dict[str, Any]
     done: bool
     info: Dict[str, Any]
 
@@ -57,6 +58,7 @@ class ESCHttpClient:
         return StepResponse(
             observation=Observation(**data["observation"]),
             reward=float(data["reward"]),
+            reward_detail=data.get("reward_detail", {}),
             done=bool(data["done"]),
             info=data.get("info", {}),
         )

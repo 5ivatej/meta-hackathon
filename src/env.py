@@ -38,6 +38,8 @@ class ESCEnv:
         self._done: bool = False
         self._cumulative_reward: float = 0.0
         self._transcript: List[Dict[str, str]] = []
+        self._agent_messages: List[str] = []
+        self._had_safety_reference: bool = False
         self._last_obs: Optional[Observation] = None
 
     # ------------------------------------------------------------------ reset
@@ -53,6 +55,8 @@ class ESCEnv:
         self._transcript = [
             {"role": "seeker", "text": self._task.persona.surface_concern}
         ]
+        self._agent_messages = []
+        self._had_safety_reference = False
 
         obs = Observation(
             seeker_utterance=self._task.persona.surface_concern,
@@ -81,17 +85,23 @@ class ESCEnv:
             raise RuntimeError("env.step() called on a finished episode — call reset()")
 
         # 1. Record the agent's turn.
+        normalized_message = " ".join(action.message.lower().split())
+        repetitive = normalized_message in self._agent_messages
         self._transcript.append({"role": "agent", "text": action.message})
+        self._agent_messages.append(normalized_message)
 
         # 2. Snapshot pre-action state (for reward deltas and future-oriented lookahead).
         pre_state = self._seeker.snapshot()
 
         # 3. Extract features and advance seeker dynamics.
         features = extract_features(action.message)
+        if features.safety > 0:
+            self._had_safety_reference = True
         transition = step_seeker(self._seeker, features)
         post_state = transition.new_state  # same object, mutated
         self._seeker = post_state
         self._turn += 1
+        transition.flags["repetitive"] = repetitive
 
         # 4. Grade the step.
         breakdown: GradeBreakdown = grade_step(
@@ -106,8 +116,18 @@ class ESCEnv:
         self._transcript.append({"role": "seeker", "text": transition.seeker_utterance})
 
         # 6. Termination check.
-        reached_closing = post_state.stage == Stage.CLOSING
-        natural_done = reached_closing and post_state.trust >= 0.6 and post_state.distress <= 0.5
+        reached_required_stage = post_state.stage.value == self._task.required_final_stage
+        met_trust_target = post_state.trust >= self._task.min_final_trust
+        met_distress_target = post_state.distress <= self._task.max_final_distress
+        revealed_if_required = (not self._task.require_reveal) or post_state.revealed
+        safety_if_required = (not self._task.require_safety_reference) or self._had_safety_reference
+        natural_done = bool(
+            reached_required_stage
+            and met_trust_target
+            and met_distress_target
+            and revealed_if_required
+            and safety_if_required
+        )
         trust_collapse = post_state.trust <= 0.05
         budget_exhausted = self._turn >= self._task.max_turns
         done = bool(natural_done or trust_collapse or budget_exhausted)
@@ -130,6 +150,12 @@ class ESCEnv:
             "stage": post_state.stage.value,
             "resolution_score": resolution_score(post_state),
             "natural_done": natural_done,
+            "repetitive": repetitive,
+            "had_safety_reference": self._had_safety_reference,
+            "meets_trust_target": met_trust_target,
+            "meets_distress_target": met_distress_target,
+            "revealed_if_required": revealed_if_required,
+            "safety_if_required": safety_if_required,
             "trust_collapse": trust_collapse,
             "budget_exhausted": budget_exhausted,
             "reward_components": breakdown.components,
@@ -142,6 +168,7 @@ class ESCEnv:
                 max_turns=self._task.max_turns,
                 final_state=post_state,
                 success_threshold=self._task.success_threshold,
+                completed=natural_done,
             )
 
         reward_detail = Reward(

@@ -33,6 +33,11 @@ class TaskSpec:
     max_turns: int
     persona: SeekerPersona
     success_threshold: float  # final score ≥ this counts as success
+    required_final_stage: str
+    min_final_trust: float
+    max_final_distress: float
+    require_reveal: bool = True
+    require_safety_reference: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -229,21 +234,31 @@ TASKS: Dict[str, TaskSpec] = {
         difficulty="easy",
         max_turns=10,
         persona=_WORK_STRESS,
-        success_threshold=0.55,
+        success_threshold=0.60,
+        required_final_stage="closing",
+        min_final_trust=0.70,
+        max_final_distress=0.40,
     ),
     "guarded_relationship": TaskSpec(
         id="guarded_relationship",
         difficulty="medium",
         max_turns=12,
         persona=_GUARDED,
-        success_threshold=0.50,
+        success_threshold=0.62,
+        required_final_stage="closing",
+        min_final_trust=0.72,
+        max_final_distress=0.45,
     ),
     "crisis_fragile_trust": TaskSpec(
         id="crisis_fragile_trust",
         difficulty="hard",
         max_turns=14,
         persona=_CRISIS,
-        success_threshold=0.45,
+        success_threshold=0.65,
+        required_final_stage="closing",
+        min_final_trust=0.75,
+        max_final_distress=0.40,
+        require_safety_reference=True,
     ),
 }
 

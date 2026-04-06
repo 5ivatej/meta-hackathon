@@ -40,6 +40,7 @@ DISMISSIVE_PENALTY = 0.6
 PREMATURE_ADVICE_PENALTY = 0.25
 BARE_PENALTY = 0.15
 INTERROGATION_PENALTY = 0.15
+REPETITION_PENALTY = 0.18
 
 
 @dataclass
@@ -116,6 +117,8 @@ def _penalties(flags: Dict[str, bool], f: Features) -> float:
         p += BARE_PENALTY
     if flags.get("interrogated"):
         p += INTERROGATION_PENALTY
+    if flags.get("repetitive"):
+        p += REPETITION_PENALTY
     return p
 
 
@@ -153,6 +156,7 @@ def final_task_score(
     max_turns: int,
     final_state: SeekerState,
     success_threshold: float,
+    completed: bool,
 ) -> Dict[str, float]:
     """Compute the final [0,1] task score used by the grader."""
     # Component 1: average shaped reward over the trajectory (already in [0,1]).
@@ -163,12 +167,19 @@ def final_task_score(
     # negative. Flat 1.0 if used ≤ 60% of budget, linearly decays to 0.7 at max.
     usage = steps_taken / max_turns
     efficiency = 1.0 if usage <= 0.6 else max(0.7, 1.0 - 0.75 * (usage - 0.6))
-    score = 0.35 * avg_reward + 0.55 * final_res + 0.10 * efficiency
+    completion = 1.0 if completed else 0.0
+    score = (
+        0.30 * avg_reward
+        + 0.45 * final_res
+        + 0.10 * efficiency
+        + 0.15 * completion
+    )
     score = max(0.0, min(1.0, score))
     return {
         "score": score,
         "avg_reward": avg_reward,
         "final_resolution": final_res,
         "efficiency": efficiency,
-        "success": 1.0 if score >= success_threshold else 0.0,
+        "completion": completion,
+        "success": 1.0 if (completed and score >= success_threshold) else 0.0,
     }

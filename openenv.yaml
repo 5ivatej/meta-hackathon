@@ -54,3 +54,10 @@ reward:
   shaping:
     - immediate_turn_reward
     - future_oriented_trajectory_reward
+    - anti_repetition_penalty
+  success:
+    type: hard_gated
+    description: >
+      Success requires both a high final score and task-specific completion
+      conditions (resolved closing stage, trust/distress targets, reveal, and
+      safety reference for the crisis task).

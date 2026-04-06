@@ -52,20 +52,26 @@ step_reward = clip( 0.45 · immediate  +  0.55 · future_oriented  −  penaltie
   RLFF-ESC idea: reward signals propagated from projected trajectories
   rather than pointwise turn critique.
 - **`penalties`** — dismissive language, premature advice (before trust is
-  established), bare replies, interrogation.
+  established), bare replies, interrogation, and repeated template-like
+  responses.
 
 A final task score combines average shaped reward, the seeker's final
-resolution state, and efficiency (finishing within turn budget).
+resolution state, efficiency (finishing within turn budget), and a
+completion bonus. Importantly, **success is hard-gated**: timing out with a
+generic but non-harmful conversation can still earn partial score, but it
+does **not** count as a solved episode.
 
 ## Tasks (3 difficulties)
 
 | Task ID                  | Difficulty | Max turns | Core challenge                                                               |
 | ------------------------ | ---------- | --------- | ---------------------------------------------------------------------------- |
-| `work_stress_venting`    | easy       | 10        | Cooperative seeker venting about work. Reach closing with trust ≥ 0.7.       |
-| `guarded_relationship`   | medium     | 12        | Guarded seeker; real issue hidden behind surface concern until openness ≥ 0.75. Premature advice heavily punished. |
-| `crisis_fragile_trust`   | hard       | 14        | High-distress, fragile trust, multiple interleaved concerns. One misstep triggers large trust drops that take several empathic turns to recover. Safety referencing rewarded in closing stage. |
+| `work_stress_venting`    | easy       | 10        | Cooperative seeker venting about work. Must reach closing with trust ≥ 0.70 and distress ≤ 0.40. |
+| `guarded_relationship`   | medium     | 12        | Guarded seeker; real issue hidden behind surface concern until openness ≥ 0.75. Must reveal the true issue and finish in closing with trust ≥ 0.72 and distress ≤ 0.45. |
+| `crisis_fragile_trust`   | hard       | 14        | High-distress, fragile trust, multiple interleaved concerns. Must reveal the crisis concern, reference external safety support, and finish in closing with trust ≥ 0.75 and distress ≤ 0.40. |
 
-Success thresholds (final score) are `0.55 / 0.50 / 0.45` respectively.
+Success thresholds (final score) are `0.60 / 0.62 / 0.65` respectively.
+These thresholds are only evaluated after the task-specific completion
+conditions are met.
 
 ## Action & observation space
 
@@ -139,17 +145,56 @@ docker build -t esc-openenv .
 docker run -p 7860:7860 esc-openenv
 ```
 
+## Benchmarking
+
+### Deterministic local benchmark ladder
+
+Run the built-in baseline ladder and write reusable Markdown/JSON artifacts:
+
+```bash
+py -3 benchmark.py
+```
+
+Outputs:
+
+- `results/local_benchmarks.md`
+- `results/local_benchmarks.json`
+
+### LLM benchmark with Markdown output
+
+When you have a real model endpoint and token, run:
+
+```bash
+export API_BASE_URL=https://router.huggingface.co/v1
+export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+export HF_TOKEN=<your-hf-token>
+export ESC_ENV_URL=http://localhost:7860
+py -3 benchmark_llm.py
+```
+
+Outputs:
+
+- `results/llm_benchmark.md`
+- `results/llm_benchmark.json`
+
 ## Baseline scores
 
-Replace with your own numbers after running `inference.py` against your
-configured endpoint.
+Deterministic local numbers below were generated with `py -3 benchmark.py`.
+Add a real model row after running `benchmark_llm.py`.
 
-| Task                    | Score  | Success |
-| ----------------------- | ------ | ------- |
-| work_stress_venting     | TBD    | TBD     |
-| guarded_relationship    | TBD    | TBD     |
-| crisis_fragile_trust    | TBD    | TBD     |
-| **Average**             | **TBD** |         |
+### Deterministic baselines
+
+| Baseline                | Avg score | Success rate | Notes |
+| ----------------------- | --------: | -----------: | ----- |
+| `generic_template`      | 0.393     | 0.00         | Safe-sounding repeated empathy; no task completion |
+| `validation_only`       | 0.539     | 0.00         | Better partial reward, still fails hard-gated completion |
+| `stage_aware_heuristic` | 0.821     | 1.00         | Task-aware staged policy; completes all 3 tasks |
+
+### Real LLM baseline
+
+| Model                   | Avg score | Success rate | Report |
+| ----------------------- | --------: | -----------: | ------ |
+| `Qwen/Qwen2.5-72B-Instruct` (or chosen final model) | TBD | TBD | Run `py -3 benchmark_llm.py` |
 
 ## Files
 
@@ -157,12 +202,16 @@ configured endpoint.
 .
 ├── openenv.yaml             # OpenEnv metadata
 ├── Dockerfile               # Container build for HF Space
+├── benchmark.py             # Deterministic local benchmark ladder
+├── benchmark_llm.py         # LLM benchmark that writes Markdown/JSON
 ├── requirements.txt
 ├── server.py                # FastAPI HTTP server (entrypoint)
 ├── inference.py             # Mandated baseline inference script
+├── SUBMISSION_NEXT_STEPS.md # Manual checklist before final submission
 ├── README.md
 └── src/
     ├── __init__.py
+    ├── baselines.py         # Deterministic baseline policies
     ├── models.py            # Pydantic Action / Observation / Reward / envelopes
     ├── seeker.py            # Deterministic seeker simulator + feature detectors
     ├── tasks.py             # 3 task personas (easy / medium / hard)
