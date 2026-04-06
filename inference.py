@@ -30,9 +30,9 @@ from src.client import ESCHttpClient
 from src.models import Action
 
 # -------------------------- mandated env vars --------------------------------
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL") or "http://10.11.7.65:11434/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "qwen2.5:7b-instruct"
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "ollama"
 ESC_ENV_URL = os.getenv("ESC_ENV_URL") or "http://localhost:7860"
 
 BENCHMARK = "emotional-support-conversations"
