@@ -238,18 +238,19 @@ Add real model rows after running `benchmark_llm.py` and
 
 | Model | Avg score | Success rate | Report |
 | --- | ---: | ---: | --- |
-| `Qwen/Qwen2.5-72B-Instruct` (or chosen final model) | TBD | TBD | Run `py -3 benchmark_llm.py` |
+| `qwen2.5:7b-instruct` | 0.406 | 0.33 | [`results/llm_benchmark.md`](results/llm_benchmark.md) |
 
 ### Skill-routed real LLM baseline
 
 | Model | Avg score | Success rate | Report |
 | --- | ---: | ---: | --- |
-| `Qwen/Qwen2.5-72B-Instruct` (or chosen final model) + router | TBD | TBD | Run `py -3 benchmark_agentic_llm.py` |
+| `qwen2.5:7b-instruct` + router | 0.371 | 0.00 | [`results/agentic_llm_benchmark.md`](results/agentic_llm_benchmark.md) |
 
 ## Benchmark narrative
 
 - The generic repeated-empathy template now fails completely under the hardened rubric.
 - The deterministic skill-routed policy matches the strong staged heuristic at `0.821` average score and `1.00` success rate, while making turn-level skill choices visible.
+- The plain `qwen2.5:7b-instruct` run solves the easy task but misses the guarded and crisis completions; the skill-routed LLM run exposes the routing trace but still fails completion across the three tasks.
 - The hard task is only successful when the trajectory reaches a safety-aware finish, so sounding supportive without escalation is not enough.
 
 ## Files
