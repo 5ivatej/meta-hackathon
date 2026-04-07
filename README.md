@@ -194,7 +194,14 @@ Add a real model row after running `benchmark_llm.py`.
 
 | Model                   | Avg score | Success rate | Report |
 | ----------------------- | --------: | -----------: | ------ |
-| `Qwen/Qwen2.5-72B-Instruct` (or chosen final model) | TBD | TBD | Run `py -3 benchmark_llm.py` |
+| `qwen2.5:7b-instruct` | 0.518 | 0.33 | [`results/llm_benchmark.md`](results/llm_benchmark.md) |
+
+The deterministic ladder separates surface-level empathy from task completion:
+the generic repeated-empathy template does not solve any task, while the
+stage-aware heuristic completes all three. The `qwen2.5:7b-instruct` run solves
+the easy work-stress task but misses the guarded and crisis completions; the
+crisis task requires an explicit safety-aware finish, not support-only
+reflection.
 
 ## Files
 
