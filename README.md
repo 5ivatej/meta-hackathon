@@ -236,22 +236,16 @@ Add real model rows after running `benchmark_llm.py` and
 
 ### Real LLM baseline
 
-| Model | Avg score | Success rate | Report |
-| --- | ---: | ---: | --- |
-| `qwen2.5:7b-instruct` | 0.406 | 0.33 | [`results/llm_benchmark.md`](results/llm_benchmark.md) |
+| Model                   | Avg score | Success rate | Report |
+| ----------------------- | --------: | -----------: | ------ |
+| `qwen2.5:7b-instruct` | 0.518 | 0.33 | [`results/llm_benchmark.md`](results/llm_benchmark.md) |
 
-### Skill-routed real LLM baseline
-
-| Model | Avg score | Success rate | Report |
-| --- | ---: | ---: | --- |
-| `qwen2.5:7b-instruct` + router | 0.371 | 0.00 | [`results/agentic_llm_benchmark.md`](results/agentic_llm_benchmark.md) |
-
-## Benchmark narrative
-
-- The generic repeated-empathy template now fails completely under the hardened rubric.
-- The deterministic skill-routed policy matches the strong staged heuristic at `0.821` average score and `1.00` success rate, while making turn-level skill choices visible.
-- The plain `qwen2.5:7b-instruct` run solves the easy task but misses the guarded and crisis completions; the skill-routed LLM run exposes the routing trace but still fails completion across the three tasks.
-- The hard task is only successful when the trajectory reaches a safety-aware finish, so sounding supportive without escalation is not enough.
+The deterministic ladder separates surface-level empathy from task completion:
+the generic repeated-empathy template does not solve any task, while the
+stage-aware heuristic completes all three. The `qwen2.5:7b-instruct` run solves
+the easy work-stress task but misses the guarded and crisis completions; the
+crisis task requires an explicit safety-aware finish, not support-only
+reflection.
 
 ## Files
 
