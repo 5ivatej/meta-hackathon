@@ -9,15 +9,19 @@ description = "OpenEnv environment for evaluating agents on emotional support co
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "openenv-core>=0.2.0",
   "fastapi==0.115.0",
   "uvicorn[standard]==0.30.6",
   "pydantic==2.9.2",
   "httpx==0.27.2",
-  "openai==1.54.3",
+  "openai>=2.7.2,<3",
 ]
 
+[project.scripts]
+server = "server.app:main"
+
 [tool.setuptools]
-py-modules = ["server", "inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm"]
+py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm"]
 
 [tool.setuptools.packages.find]
-include = ["src*"]
+include = ["src*", "server*"]

@@ -15,7 +15,7 @@ tags:
   - mental-health
   - rl-native
   - partial-observability
-entrypoint: server:app
+entrypoint: server.app:app
 port: 7860
 runtime:
   python: "3.11"

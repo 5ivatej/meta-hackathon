@@ -8,9 +8,9 @@ POST /step         → take one step with {"action": {"message": "..."}}
 GET  /state        → return current EnvState
 GET  /tasks        → list available tasks + difficulties
 
-The server holds a single in-process ESCEnv instance. For parallel eval,
-deploy multiple replicas — the env itself has no shared state between
-instances.
+This server is stateless across replicas: the current environment snapshot is
+stored in a signed, compressed cookie so any replica can serve the next
+request as long as all nodes share the same session secret.
 """
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ import json
 import os
 import zlib
 
-from fastapi import FastAPI, HTTPException
-from fastapi import Request, Response
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request, Response
 
 from src.env import ESCEnv
 from src.models import ResetRequest, StepRequest
@@ -66,8 +66,7 @@ def _decode_env(token: str) -> ESCEnv:
     except ValueError as exc:
         raise RuntimeError("Invalid session token") from exc
 
-    expected = _sign(payload)
-    if not hmac.compare_digest(signature, expected):
+    if not hmac.compare_digest(signature, _sign(payload)):
         raise RuntimeError("Invalid session signature")
 
     try:
@@ -112,10 +111,12 @@ def reset(request: Request, response: Response, req: ResetRequest | None = None)
             env = ESCEnv()
     else:
         env = ESCEnv()
+
     try:
         result = env.reset(task_id=req.task_id, seed=req.seed)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
     response.set_cookie(
         key=SESSION_COOKIE,
         value=_encode_env(env),
@@ -132,6 +133,7 @@ def step(req: StepRequest, request: Request, response: Response) -> dict:
         result = env.step(req.action)
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
     response.set_cookie(
         key=SESSION_COOKIE,
         value=_encode_env(env),
@@ -147,3 +149,11 @@ def state(request: Request) -> dict:
         return _get_env_for_request(request).state().model_dump()
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+def main() -> None:
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.getenv("PORT", "7860")))
+
+
+if __name__ == "__main__":
+    main()
