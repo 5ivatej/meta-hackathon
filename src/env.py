@@ -215,3 +215,75 @@ class ESCEnv:
             }
             for t in TASKS.values()
         ]
+
+    # ------------------------------------------------------------- serialization
+
+    def export_state(self) -> Dict[str, Any]:
+        if self._task is None or self._seeker is None:
+            raise RuntimeError("env.export_state() called before reset()")
+
+        seeker_state = {
+            "distress": self._seeker.distress,
+            "trust": self._seeker.trust,
+            "openness": self._seeker.openness,
+            "revealed": self._seeker.revealed,
+            "stage": self._seeker.stage.value,
+            "last_line_idx_by_stage": {
+                stage.value: idx for stage, idx in self._seeker.last_line_idx_by_stage.items()
+            },
+            "turn": self._seeker.turn,
+        }
+
+        return {
+            "task_id": self._task.id,
+            "turn": self._turn,
+            "done": self._done,
+            "cumulative_reward": self._cumulative_reward,
+            "transcript": list(self._transcript),
+            "agent_messages": list(self._agent_messages),
+            "had_safety_reference": self._had_safety_reference,
+            "seeker": seeker_state,
+        }
+
+    @classmethod
+    def from_state(cls, data: Dict[str, Any]) -> "ESCEnv":
+        task = get_task(str(data["task_id"]))
+        seeker_data = data["seeker"]
+
+        env = cls()
+        env._task = task
+        env._turn = int(data["turn"])
+        env._done = bool(data["done"])
+        env._cumulative_reward = float(data["cumulative_reward"])
+        env._transcript = list(data.get("transcript", []))
+        env._agent_messages = list(data.get("agent_messages", []))
+        env._had_safety_reference = bool(data.get("had_safety_reference", False))
+        env._seeker = SeekerState(
+            persona=task.persona,
+            distress=float(seeker_data["distress"]),
+            trust=float(seeker_data["trust"]),
+            openness=float(seeker_data["openness"]),
+            revealed=bool(seeker_data["revealed"]),
+            stage=Stage(str(seeker_data["stage"])),
+            last_line_idx_by_stage={
+                Stage(stage_name): int(idx)
+                for stage_name, idx in seeker_data["last_line_idx_by_stage"].items()
+            },
+            turn=int(seeker_data["turn"]),
+        )
+
+        if env._transcript:
+            last_seeker_text = next(
+                (entry["text"] for entry in reversed(env._transcript) if entry.get("role") == "seeker"),
+                task.persona.surface_concern,
+            )
+            env._last_obs = Observation(
+                seeker_utterance=last_seeker_text,
+                turn=env._turn,
+                remaining_turns=max(0, task.max_turns - env._turn),
+                stage_hint=env._seeker.stage.value,
+                task_id=task.id,
+                scenario_brief=task.persona.scenario_brief,
+            )
+
+        return env
