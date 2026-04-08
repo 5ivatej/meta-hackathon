@@ -16,7 +16,7 @@ Authentication variables:
 
 Example:
     export API_BASE_URL=https://router.huggingface.co/v1
-    export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+    export MODEL_NAME=gpt-4.1-mini
     export HF_TOKEN=<your-token>
     export ESC_ENV_URL=http://127.0.0.1:7860
     python3 benchmark_llm.py

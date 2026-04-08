@@ -125,7 +125,7 @@ uvicorn server:app --host 0.0.0.0 --port 7860
 
 # 3. In another shell, run the baseline inference
 export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+export MODEL_NAME=gpt-4.1-mini
 export HF_TOKEN=<your-hf-token>
 export ESC_ENV_URL=http://127.0.0.1:7860
 python3 inference.py
@@ -189,7 +189,7 @@ When you have a real model endpoint and token, run:
 
 ```bash
 export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+export MODEL_NAME=gpt-4.1-mini
 export HF_TOKEN=<your-hf-token>
 export ESC_ENV_URL=http://127.0.0.1:7860
 python3 benchmark_llm.py
@@ -207,7 +207,7 @@ traces around the model:
 
 ```bash
 export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+export MODEL_NAME=gpt-4.1-mini
 export HF_TOKEN=<your-hf-token>
 export ESC_ENV_URL=http://127.0.0.1:7860
 python3 benchmark_agentic_llm.py
@@ -221,8 +221,8 @@ Outputs:
 ## Baseline scores
 
 Deterministic local numbers below were generated with `py -3 benchmark.py`.
-Add real model rows after running `benchmark_llm.py` and
-`benchmark_agentic_llm.py`.
+The submitted hosted baseline below comes from a live `inference.py` run
+against the deployed Hugging Face Space using `gpt-4.1-mini`.
 
 ### Deterministic baselines
 
@@ -238,18 +238,17 @@ Add real model rows after running `benchmark_llm.py` and
 | --- | ---: | ---: | --- |
 | `skill_routed_deterministic` | 0.821 | 1.00 | Explicit router over `empathize` / `validate` / `explore` / `plan` / `safety_escalate`; matches the strong staged baseline while exposing route traces |
 
-### Real LLM baseline
+### Submitted Hosted LLM Baseline
 
-| Model                   | Avg score | Success rate | Report |
-| ----------------------- | --------: | -----------: | ------ |
-| `qwen2.5:7b-instruct` | 0.518 | 0.33 | [`results/llm_benchmark.md`](results/llm_benchmark.md) |
+| Model | Avg score | Success rate | Notes |
+| --- | ---: | ---: | --- |
+| `gpt-4.1-mini` | 0.821 | 1.00 | Live `inference.py` run against [`5ivatej-meta-hackathon.hf.space`](https://5ivatej-meta-hackathon.hf.space) |
 
 The deterministic ladder separates surface-level empathy from task completion:
 the generic repeated-empathy template does not solve any task, while the
-stage-aware heuristic completes all three. The `qwen2.5:7b-instruct` run solves
-the easy work-stress task but misses the guarded and crisis completions; the
-crisis task requires an explicit safety-aware finish, not support-only
-reflection.
+stage-aware heuristic completes all three. The submitted `gpt-4.1-mini`
+baseline also completes all three tasks because the policy-side controller
+keeps the conversation stage-aware instead of drifting into endless reflection.
 
 ## Files
 

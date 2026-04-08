@@ -41,7 +41,7 @@ This is the script the submission already exposes.
 
 ```powershell
 $env:API_BASE_URL="https://router.huggingface.co/v1"
-$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:MODEL_NAME="gpt-4.1-mini"
 $env:HF_TOKEN="<your-token>"
 $env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 inference.py
@@ -55,7 +55,7 @@ Use this when you want a reusable results file for the README or final report.
 
 ```powershell
 $env:API_BASE_URL="https://router.huggingface.co/v1"
-$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:MODEL_NAME="gpt-4.1-mini"
 $env:HF_TOKEN="<your-token>"
 $env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 benchmark_llm.py
@@ -74,7 +74,7 @@ endpoint instead of a local-only model server.
 
 ```powershell
 $env:API_BASE_URL="https://router.huggingface.co/v1"
-$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:MODEL_NAME="gpt-4.1-mini"
 $env:HF_TOKEN="<your-token>"
 $env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 benchmark_agentic_llm.py
