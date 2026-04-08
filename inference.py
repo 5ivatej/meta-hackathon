@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 import textwrap
 import traceback
@@ -179,12 +180,24 @@ def should_accept_rewrite(draft: str, candidate: str) -> bool:
     if not candidate:
         return False
 
+    draft_norm = " ".join(re.sub(r"[^\w\s]", "", draft.lower()).split())
+    candidate_norm = " ".join(re.sub(r"[^\w\s]", "", candidate.lower()).split())
     draft_features = extract_features(draft)
     candidate_features = extract_features(candidate)
 
     if candidate_features.dismissive > 0 or candidate_features.bare:
         return False
     if _count_questions(candidate) > 1 or candidate_features.interrogative > 0:
+        return False
+    if len(candidate.split()) > max(24, int(len(draft.split()) * 1.2)):
+        return False
+    if draft_features.open_question != candidate_features.open_question:
+        return False
+    if draft_features.advice != candidate_features.advice:
+        return False
+    if draft_features.safety != candidate_features.safety:
+        return False
+    if draft_features.validation != candidate_features.validation:
         return False
 
     # Do not let the rewrite weaken the key stage-driving signals already
@@ -199,8 +212,14 @@ def should_accept_rewrite(draft: str, candidate: str) -> bool:
         return False
     if draft_features.safety > 0 and candidate_features.safety <= 0:
         return False
+    if draft_norm == candidate_norm:
+        return True
 
-    return True
+    # Only accept near-verbatim rewrites; otherwise keep the proven draft.
+    draft_tokens = set(draft_norm.split())
+    candidate_tokens = set(candidate_norm.split())
+    overlap = len(draft_tokens & candidate_tokens) / max(1, len(draft_tokens))
+    return overlap >= 0.8
 
 
 # -------------------------- per-task episode ---------------------------------

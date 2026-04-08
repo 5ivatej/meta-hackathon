@@ -14,7 +14,10 @@ instances.
 """
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException
+from fastapi import Request, Response
 
 from src.env import ESCEnv
 from src.models import ResetRequest, StepRequest
@@ -29,7 +32,15 @@ app = FastAPI(
     ),
 )
 
-_env = ESCEnv()
+SESSION_COOKIE = "esc_session_id"
+_envs: dict[str, ESCEnv] = {}
+
+
+def _get_env_for_request(request: Request) -> ESCEnv:
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if not session_id or session_id not in _envs:
+        raise RuntimeError("env.step() called before reset()")
+    return _envs[session_id]
 
 
 @app.get("/")
@@ -48,27 +59,35 @@ def list_tasks() -> dict:
 
 
 @app.post("/reset")
-def reset(req: ResetRequest | None = None) -> dict:
+def reset(request: Request, response: Response, req: ResetRequest | None = None) -> dict:
     req = req or ResetRequest()
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if not session_id:
+        session_id = uuid4().hex
+    env = _envs.get(session_id)
+    if env is None:
+        env = ESCEnv()
+        _envs[session_id] = env
     try:
-        result = _env.reset(task_id=req.task_id, seed=req.seed)
+        result = env.reset(task_id=req.task_id, seed=req.seed)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True, samesite="lax")
     return result.model_dump()
 
 
 @app.post("/step")
-def step(req: StepRequest) -> dict:
+def step(req: StepRequest, request: Request) -> dict:
     try:
-        result = _env.step(req.action)
+        result = _get_env_for_request(request).step(req.action)
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return result.model_dump()
 
 
 @app.get("/state")
-def state() -> dict:
+def state(request: Request) -> dict:
     try:
-        return _env.state().model_dump()
+        return _get_env_for_request(request).state().model_dump()
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
