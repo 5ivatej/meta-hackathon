@@ -31,8 +31,10 @@ from typing import List, Optional
 
 from openai import OpenAI
 
+from src.agentic import AgentMemory, SkillRouter, build_default_skills
 from src.client import ESCHttpClient
 from src.models import Action
+from src.seeker import extract_features
 
 BENCHMARK = "emotional-support-conversations"
 MAX_STEPS = 14  # upper bound; env imposes per-task limits too
@@ -43,23 +45,23 @@ TASK_IDS = ["work_stress_venting", "guarded_relationship", "crisis_fragile_trust
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
-    You are an emotionally attuned peer supporter chatting with someone who is
-    going through a hard time. Your job is NOT to fix their problem. Your job
-    is to make them feel heard, safe, and understood first — and only move
-    toward gentle exploration or light action once trust is established.
+    You are the response generator inside a controlled emotional-support agent.
 
-    Principles:
-    - Lead with empathy and validation. Reflect what you hear.
-    - Do NOT give advice until the person has clearly shared what's really
-      going on and feels heard.
-    - Ask at most one open-ended question per reply. Never interrogate.
-    - Never be dismissive, minimising, or instructive in a judgmental tone.
-    - Keep replies warm, brief (1-3 sentences), and human.
-    - In high-distress / crisis scenarios, gently reference professional
-      support (a therapist, crisis line) only after rapport is built.
+    A deterministic controller has already selected the correct conversational
+    move for this turn and written a draft reply. Your job is only to lightly
+    polish that draft while preserving its intent and structure.
 
-    You will receive the current conversation state. Reply with ONLY your
-    next message to the person — no role labels, no prefixes, no quotes.
+    Hard rules:
+    - Stay extremely close to the draft.
+    - Keep the same stage objective. Do not change exploration into advice or
+      advice into exploration.
+    - Preserve any explicit safety support mention, validation, and questions
+      already present in the draft.
+    - Do not add extra questions, extra advice, or new topics.
+    - Keep replies warm, brief, and human.
+    - If the draft is already strong, repeat it verbatim.
+
+    Reply with ONLY the next message to the seeker.
     """
 ).strip()
 
@@ -119,6 +121,10 @@ def build_user_prompt(
     remaining: int,
     seeker_utterance: str,
     history: List[str],
+    skill_name: str,
+    rationale: str,
+    skill_instruction: str,
+    draft_reply: str,
 ) -> str:
     history_block = "\n".join(history[-8:]) if history else "(this is the first turn)"
     return textwrap.dedent(
@@ -126,6 +132,9 @@ def build_user_prompt(
         Scenario: {scenario_brief}
         Conversation stage (public hint): {stage_hint}
         Turn: {turn}   Remaining turns: {remaining}
+        Selected skill: {skill_name}
+        Why this skill was selected: {rationale}
+        Skill directive: {skill_instruction}
 
         Recent exchange:
         {history_block}
@@ -133,7 +142,11 @@ def build_user_prompt(
         Seeker just said:
         "{seeker_utterance}"
 
-        Write your next reply (1-3 sentences, warm, no advice unless rapport is clearly established):
+        Deterministic draft reply:
+        "{draft_reply}"
+
+        Lightly polish the draft only if needed. Preserve its goal and
+        structure. If unsure, output the draft unchanged.
         """
     ).strip()
 
@@ -157,6 +170,39 @@ def call_llm(client: OpenAI, model_name: str, user_prompt: str) -> str:
         return "That sounds really hard. I'm here — do you want to tell me more about what's going on?"
 
 
+def _count_questions(text: str) -> int:
+    return (text or "").count("?")
+
+
+def should_accept_rewrite(draft: str, candidate: str) -> bool:
+    candidate = (candidate or "").strip()
+    if not candidate:
+        return False
+
+    draft_features = extract_features(draft)
+    candidate_features = extract_features(candidate)
+
+    if candidate_features.dismissive > 0 or candidate_features.bare:
+        return False
+    if _count_questions(candidate) > 1 or candidate_features.interrogative > 0:
+        return False
+
+    # Do not let the rewrite weaken the key stage-driving signals already
+    # present in the deterministic draft.
+    if draft_features.open_question > 0 and candidate_features.open_question <= 0:
+        return False
+    if draft_features.validation > 0 and candidate_features.validation <= 0:
+        return False
+    if draft_features.empathy > 0 and candidate_features.empathy <= 0:
+        return False
+    if draft_features.advice > 0 and candidate_features.advice <= 0:
+        return False
+    if draft_features.safety > 0 and candidate_features.safety <= 0:
+        return False
+
+    return True
+
+
 # -------------------------- per-task episode ---------------------------------
 
 async def run_task(
@@ -166,6 +212,11 @@ async def run_task(
     task_id: str,
 ) -> dict:
     log_start(task=task_id, env=BENCHMARK, model=model_name)
+
+    router = SkillRouter()
+    skills = build_default_skills()
+    memory = AgentMemory()
+    memory.reset(task_id)
 
     rewards: List[float] = []
     steps_taken = 0
@@ -180,6 +231,10 @@ async def run_task(
         history.append(f"Seeker: {obs.seeker_utterance!r}")
 
         for step in range(1, MAX_STEPS + 1):
+            memory.observe(obs)
+            decision = router.choose(obs, memory)
+            skill = skills[decision.skill_name]
+            draft_message = skill.render(obs, memory, decision)
             user_prompt = build_user_prompt(
                 scenario_brief=obs.scenario_brief,
                 stage_hint=obs.stage_hint,
@@ -187,8 +242,14 @@ async def run_task(
                 remaining=obs.remaining_turns,
                 seeker_utterance=obs.seeker_utterance,
                 history=history,
+                skill_name=decision.skill_name,
+                rationale=decision.rationale,
+                skill_instruction=skill.llm_instruction(obs, memory, decision),
+                draft_reply=draft_message,
             )
-            message = call_llm(openai_client, model_name, user_prompt)
+            candidate_message = call_llm(openai_client, model_name, user_prompt)
+            message = candidate_message if should_accept_rewrite(draft_message, candidate_message) else draft_message
+            memory.remember(decision.skill_name, message)
 
             try:
                 result = await env_client.step(Action(message=message))
