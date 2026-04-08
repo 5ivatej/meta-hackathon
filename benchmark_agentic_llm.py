@@ -8,15 +8,17 @@ routing traces.
 Required environment variables:
     API_BASE_URL
     MODEL_NAME
-    HF_TOKEN or API_KEY
     ESC_ENV_URL
 
+Authentication variables:
+    HF_TOKEN or OPENAI_API_KEY or API_KEY
+
 Example:
-    $env:API_BASE_URL="http://localhost:11434/v1"
-    $env:MODEL_NAME="qwen2.5:7b-instruct"
-    $env:API_KEY="ollama"
-    $env:ESC_ENV_URL="http://localhost:7860"
-    py -3 benchmark_agentic_llm.py
+    export API_BASE_URL=https://router.huggingface.co/v1
+    export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+    export HF_TOKEN=<your-token>
+    export ESC_ENV_URL=http://127.0.0.1:7860
+    python3 benchmark_agentic_llm.py
 """
 from __future__ import annotations
 
@@ -144,6 +146,13 @@ def require_env(name: str) -> str:
             f"Set it, then rerun `py -3 benchmark_agentic_llm.py`."
         )
     return value
+
+
+def resolve_api_key() -> str:
+    api_key = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
+    if not api_key:
+        raise SystemExit("Missing HF_TOKEN, OPENAI_API_KEY, or API_KEY.")
+    return api_key
 
 
 async def run_task(
@@ -299,9 +308,7 @@ def render_markdown(
 async def async_main(output: str, json_output: str) -> None:
     api_base_url = require_env("API_BASE_URL")
     model_name = require_env("MODEL_NAME")
-    api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-    if not api_key:
-        raise SystemExit("Missing HF_TOKEN or API_KEY.")
+    api_key = resolve_api_key()
     env_url = require_env("ESC_ENV_URL")
 
     endpoint_type = classify_endpoint(api_base_url)

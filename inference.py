@@ -2,10 +2,15 @@
 
 MANDATORY env vars
 ------------------
-    API_BASE_URL   - LLM endpoint (default: https://router.huggingface.co/v1)
-    MODEL_NAME     - Model identifier (default: Qwen/Qwen2.5-72B-Instruct)
-    HF_TOKEN       - API key for the inference endpoint
-    ESC_ENV_URL    - URL of the running ESC OpenEnv HTTP server (e.g. the HF Space URL)
+    API_BASE_URL   - LLM endpoint
+    MODEL_NAME     - Model identifier
+    HF_TOKEN       - Hugging Face / router token (preferred)
+    ESC_ENV_URL    - URL of the running ESC OpenEnv HTTP server (defaults to localhost)
+
+Compatible auth env vars
+------------------------
+    OPENAI_API_KEY - standard OpenAI-compatible auth key
+    API_KEY        - generic OpenAI-compatible auth key
 
 STDOUT contract (strict)
 ------------------------
@@ -28,12 +33,6 @@ from openai import OpenAI
 
 from src.client import ESCHttpClient
 from src.models import Action
-
-# -------------------------- mandated env vars --------------------------------
-API_BASE_URL = os.getenv("API_BASE_URL") or "http://10.11.7.65:11434/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "qwen2.5:7b-instruct"
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or "ollama"
-ESC_ENV_URL = os.getenv("ESC_ENV_URL") or "http://localhost:7860"
 
 BENCHMARK = "emotional-support-conversations"
 MAX_STEPS = 14  # upper bound; env imposes per-task limits too
@@ -63,6 +62,26 @@ SYSTEM_PROMPT = textwrap.dedent(
     next message to the person — no role labels, no prefixes, no quotes.
     """
 ).strip()
+
+
+def require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise SystemExit(
+            f"Missing required environment variable: {name}\n"
+            "Set the judging env vars and rerun `python inference.py`."
+        )
+    return value
+
+
+def resolve_api_key() -> str:
+    api_key = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
+    if not api_key:
+        raise SystemExit(
+            "Missing authentication token. Set HF_TOKEN, OPENAI_API_KEY, or API_KEY "
+            "before running `python inference.py`."
+        )
+    return api_key
 
 
 # -------------------------- stdout contract ----------------------------------
@@ -119,10 +138,10 @@ def build_user_prompt(
     ).strip()
 
 
-def call_llm(client: OpenAI, user_prompt: str) -> str:
+def call_llm(client: OpenAI, model_name: str, user_prompt: str) -> str:
     try:
         completion = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -140,8 +159,13 @@ def call_llm(client: OpenAI, user_prompt: str) -> str:
 
 # -------------------------- per-task episode ---------------------------------
 
-async def run_task(openai_client: OpenAI, env_client: ESCHttpClient, task_id: str) -> dict:
-    log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
+async def run_task(
+    openai_client: OpenAI,
+    env_client: ESCHttpClient,
+    model_name: str,
+    task_id: str,
+) -> dict:
+    log_start(task=task_id, env=BENCHMARK, model=model_name)
 
     rewards: List[float] = []
     steps_taken = 0
@@ -164,7 +188,7 @@ async def run_task(openai_client: OpenAI, env_client: ESCHttpClient, task_id: st
                 seeker_utterance=obs.seeker_utterance,
                 history=history,
             )
-            message = call_llm(openai_client, user_prompt)
+            message = call_llm(openai_client, model_name, user_prompt)
 
             try:
                 result = await env_client.step(Action(message=message))
@@ -206,13 +230,18 @@ async def run_task(openai_client: OpenAI, env_client: ESCHttpClient, task_id: st
 # -------------------------- main ---------------------------------------------
 
 async def main() -> None:
-    openai_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY or "dummy")
-    env_client = ESCHttpClient.from_url(ESC_ENV_URL)
+    api_base_url = require_env("API_BASE_URL")
+    model_name = require_env("MODEL_NAME")
+    api_key = resolve_api_key()
+    env_url = os.getenv("ESC_ENV_URL") or "http://127.0.0.1:7860"
+
+    openai_client = OpenAI(base_url=api_base_url, api_key=api_key)
+    env_client = ESCHttpClient.from_url(env_url)
 
     results = []
     try:
         for task_id in TASK_IDS:
-            res = await run_task(openai_client, env_client, task_id)
+            res = await run_task(openai_client, env_client, model_name, task_id)
             results.append(res)
     finally:
         await env_client.close()

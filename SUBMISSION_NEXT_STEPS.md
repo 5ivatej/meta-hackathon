@@ -43,7 +43,7 @@ This is the script the submission already exposes.
 $env:API_BASE_URL="https://router.huggingface.co/v1"
 $env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
 $env:HF_TOKEN="<your-token>"
-$env:ESC_ENV_URL="http://localhost:7860"
+$env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 inference.py
 ```
 
@@ -57,7 +57,7 @@ Use this when you want a reusable results file for the README or final report.
 $env:API_BASE_URL="https://router.huggingface.co/v1"
 $env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
 $env:HF_TOKEN="<your-token>"
-$env:ESC_ENV_URL="http://localhost:7860"
+$env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 benchmark_llm.py
 ```
 
@@ -69,17 +69,16 @@ Artifacts written:
 ## 5. Run the skill-routed LLM benchmark
 
 Use this when you want an explicit skills/agents baseline with route traces.
-You can use a local OpenAI-compatible endpoint here during development.
+For submission safety, keep this pointed at a reachable hosted OpenAI-compatible
+endpoint instead of a local-only model server.
 
 ```powershell
-$env:API_BASE_URL="http://localhost:11434/v1"
-$env:MODEL_NAME="qwen2.5:7b-instruct"
-$env:API_KEY="ollama"
-$env:ESC_ENV_URL="http://localhost:7860"
+$env:API_BASE_URL="https://router.huggingface.co/v1"
+$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:HF_TOKEN="<your-token>"
+$env:ESC_ENV_URL="http://127.0.0.1:7860"
 py -3 benchmark_agentic_llm.py
 ```
-
-For the final Hugging Face run, swap in your deployment endpoint and token.
 
 Artifacts written:
 

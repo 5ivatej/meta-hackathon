@@ -127,9 +127,13 @@ uvicorn server:app --host 0.0.0.0 --port 7860
 export API_BASE_URL=https://router.huggingface.co/v1
 export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
 export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://localhost:7860
-python inference.py
+export ESC_ENV_URL=http://127.0.0.1:7860
+python3 inference.py
 ```
+
+`inference.py` uses the OpenAI client and expects `API_BASE_URL` plus
+`MODEL_NAME`. For authentication it accepts `HF_TOKEN` (preferred for Hugging
+Face Router), `OPENAI_API_KEY`, or `API_KEY`.
 
 ## Running via Docker
 
@@ -187,8 +191,8 @@ When you have a real model endpoint and token, run:
 export API_BASE_URL=https://router.huggingface.co/v1
 export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
 export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://localhost:7860
-py -3 benchmark_llm.py
+export ESC_ENV_URL=http://127.0.0.1:7860
+python3 benchmark_llm.py
 ```
 
 Outputs:
@@ -205,8 +209,8 @@ traces around the model:
 export API_BASE_URL=https://router.huggingface.co/v1
 export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
 export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://localhost:7860
-py -3 benchmark_agentic_llm.py
+export ESC_ENV_URL=http://127.0.0.1:7860
+python3 benchmark_agentic_llm.py
 ```
 
 Outputs:
