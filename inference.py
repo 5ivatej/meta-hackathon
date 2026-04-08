@@ -2,8 +2,8 @@
 
 MANDATORY env vars
 ------------------
-    API_BASE_URL   - LLM endpoint
-    MODEL_NAME     - Model identifier
+    API_BASE_URL   - LLM endpoint (defaults to https://api.openai.com/v1)
+    MODEL_NAME     - Model identifier (defaults to gpt-4.1-mini)
     HF_TOKEN       - Hugging Face / router token (preferred)
     ESC_ENV_URL    - URL of the running ESC OpenEnv HTTP server (defaults to localhost)
 
@@ -65,6 +65,9 @@ SYSTEM_PROMPT = textwrap.dedent(
     Reply with ONLY the next message to the seeker.
     """
 ).strip()
+
+DEFAULT_API_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_MODEL_NAME = "gpt-4.1-mini"
 
 
 def require_env(name: str) -> str:
@@ -310,8 +313,8 @@ async def run_task(
 # -------------------------- main ---------------------------------------------
 
 async def main() -> None:
-    api_base_url = require_env("API_BASE_URL")
-    model_name = require_env("MODEL_NAME")
+    api_base_url = os.getenv("API_BASE_URL") or DEFAULT_API_BASE_URL
+    model_name = os.getenv("MODEL_NAME") or DEFAULT_MODEL_NAME
     api_key = resolve_api_key()
     env_url = os.getenv("ESC_ENV_URL") or "http://127.0.0.1:7860"
 
