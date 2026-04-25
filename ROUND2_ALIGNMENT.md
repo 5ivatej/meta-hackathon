@@ -82,6 +82,11 @@ Why:
 - The agent must balance empathy, disclosure, safety escalation, and therapeutic pacing.
 - The task is realistic enough to pitch as a therapy-support niche rather than a toy benchmark.
 
+Scope boundary:
+
+- This fit does **not** depend on adding external tools, cross-session memory, or a richer world simulator.
+- The current version is still valid as a focused personalized-conversation environment.
+
 ### Weak Secondary Fit: Theme 2 Long-Horizon Planning
 
 There is some fit because:
@@ -167,6 +172,8 @@ Why it is not higher:
 - limited horizon
 - still a scripted simulator rather than a richer personal world
 
+These are acceptable constraints for Theme 3.2, but they cap how ambitious the environment feels.
+
 ### B. Submission Readiness Against Round 2 Judging
 
 If judges reviewed the repo in its current state as a Round 2 submission, the score would be much lower because the mandatory training proof is missing.
@@ -183,7 +190,29 @@ If judges reviewed the repo in its current state as a Round 2 submission, the sc
 
 **Estimated current Round 2 readiness: 52/100**
 
-## 8. What Is Already Strong
+## 8. Current Scope Boundaries
+
+The current repo should explicitly present these as deliberate design boundaries:
+
+- no real tool use
+- no longer-term memory across sessions
+- limited horizon
+- still a scripted simulator rather than a richer personal world
+
+Why this is still defensible:
+
+- it keeps grading deterministic and reproducible
+- it makes training easier to run and compare
+- it keeps the benchmark focused on therapist-style conversational decision-making
+
+What this means strategically:
+
+- do not pitch it as a professional workflow environment
+- do not pitch it as a long-horizon memory benchmark
+- do not promise a rich personal world simulator that does not exist
+- do pitch it as a focused personalized conversation environment with hidden state and safety-sensitive timing
+
+## 9. What Is Already Strong
 
 - The environment is not a toy gridworld.
 - Hidden state makes the task genuinely partially observable.
@@ -192,7 +221,7 @@ If judges reviewed the repo in its current state as a Round 2 submission, the sc
 - The online therapist niche is stronger and more memorable than a generic chatbot demo.
 - The deterministic design is judge-friendly and reproducible.
 
-## 9. Main Gaps Blocking a Strong Round 2 Submission
+## 10. Main Gaps Blocking a Strong Round 2 Submission
 
 1. No actual TRL or Unsloth training script.
 2. No training curves or before/after trained-policy evidence.
@@ -200,9 +229,9 @@ If judges reviewed the repo in its current state as a Round 2 submission, the sc
 4. No short blog/video link in the README.
 5. No explicit Round 2 problem statement and story.
 6. No proof that the implementation uses the latest OpenEnv release or official base classes.
-7. The current task is only moderately long-horizon, not truly long-running.
+7. The current task is only moderately sequential, not truly long-running.
 
-## 10. Recommendation
+## 11. Recommendation
 
 Do **not** throw away the repo.
 
@@ -210,12 +239,13 @@ The practical move is:
 
 1. Reframe the submission around **Theme 3.2 Personalized Tasks**.
 2. Keep the current environment core and reward design, but make the niche explicitly **online therapist / therapy-style support**.
-3. Add a minimal real training pipeline with TRL or Unsloth.
-4. Produce one clear before/after comparison with plots.
-5. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, and safety-aware escalation.
+3. Keep the scope narrow instead of expanding into tools, persistent memory, or richer world simulation.
+4. Add a minimal real training pipeline with TRL or Unsloth.
+5. Produce one clear before/after comparison with plots.
+6. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, and safety-aware escalation.
 
-## 11. Short Verdict
+## 12. Short Verdict
 
 **Round 1 codebase fit to Round 2 theme:** good if framed as Personalized Tasks with an online therapist niche.  
 **Round 1 codebase fit to Round 2 submission requirements:** incomplete.  
-**Best interpretation:** keep the environment, change the pitch, add training proof, and package it properly.
+**Best interpretation:** keep the environment narrow, change the pitch, add training proof, and package it properly.

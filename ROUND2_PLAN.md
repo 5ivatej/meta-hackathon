@@ -1,6 +1,6 @@
 # Round 2 Execution Plan
 
-This plan assumes you keep the current environment and reposition it for Round 2 instead of rebuilding from scratch.
+This plan assumes you keep the current environment, keep the scope narrow, and reposition it for Round 2 instead of rebuilding from scratch.
 
 ## 1. Recommended Direction
 
@@ -25,11 +25,23 @@ Recommended wording for the submission:
 
 Avoid claiming the system is a licensed therapist.
 
+### Deliberate Scope Limits
+
+This plan does **not** require adding:
+
+- real external tool use
+- longer-term memory across sessions
+- long-horizon task structure
+- a richer open-ended personal world simulator
+
+Those are valid future extensions, but they are not required for a credible Theme 3.2 submission.
+
 ### Why this is the right move
 
 - It fits the existing repo much better than multi-agent or long-horizon.
 - The environment is already partially observable and reward-shaped.
 - You can spend effort on training proof and presentation instead of rewriting the whole benchmark.
+- It avoids diluting the submission with half-built tool-use or memory features.
 
 ## 2. Goal State
 
@@ -107,6 +119,7 @@ Recommended scope:
 - Keep it minimal.
 - Use HF TRL unless Unsloth gives you faster execution for the same story.
 - Train a small model or a lightweight policy adapter against the environment.
+- Do not block on adding tools, memory, or a richer simulator first.
 
 What the training script should do:
 
@@ -165,6 +178,7 @@ Suggested narrative:
 2. This environment makes therapist-style support sequential, partially observable, and safety-sensitive.
 3. The reward teaches timing, pacing, disclosure handling, and escalation, not just nice wording.
 4. Training improves completion and safety-aware behavior.
+5. The current benchmark is intentionally narrow: no tools, no persistent memory, and a deterministic simulator for reproducibility.
 
 Definition of done:
 
@@ -213,12 +227,13 @@ Definition of done:
 Do this in order:
 
 1. Lock the Round 2 framing around Personalized Tasks.
-2. Verify OpenEnv compliance against the latest release.
-3. Add the minimal training script.
-4. Run one real training job and save metrics.
-5. Generate plots and before/after comparisons.
-6. Rewrite the README around the new story.
-7. Publish the Space and external explainer.
+2. Add the scope boundaries explicitly so you do not overclaim.
+3. Verify OpenEnv compliance against the latest release.
+4. Add the minimal training script.
+5. Run one real training job and save metrics.
+6. Generate plots and before/after comparisons.
+7. Rewrite the README around the new story.
+8. Publish the Space and external explainer.
 
 ## 6. Practical Timeline
 
@@ -227,6 +242,7 @@ Do this in order:
 Deliverables:
 
 - final theme selection
+- explicit scope limits
 - Round 2 README outline
 - confirmed environment framing
 - confirmed OpenEnv compliance gaps
@@ -255,9 +271,10 @@ Deliverables:
 | Training is too slow or unstable | High | Use a smaller model, fewer tasks, and one clear training story rather than chasing scale. |
 | OpenEnv compliance turns out incomplete | High | Fix framework usage before polishing presentation. |
 | No visible reward improvement | High | Run a simpler baseline and compare against trained behavior on medium/hard tasks only. |
-| Story feels too similar to Round 1 | Medium | Reframe around personalized-task capability learning, hidden state, and safety-sensitive planning. |
+| Story feels too similar to Round 1 | Medium | Reframe around therapist-style capability learning, hidden state, and safety-sensitive planning. |
 | Therapist framing sounds overclaimed or unsafe | Medium | Use therapist-style / therapy-support wording and emphasize escalation to real-world help. |
 | The task feels too short-horizon | Medium | Emphasize partial observability, delayed effects, and safety timing rather than claiming long-horizon planning. |
+| Judges want a richer world than you built | Medium | Be explicit that this is a narrow but trainable personalized conversation environment, then show strong training evidence. |
 
 ## 8. What Not To Do
 
@@ -265,14 +282,16 @@ Avoid these traps:
 
 1. Do not re-pitch this as multi-agent unless you actually redesign the environment.
 2. Do not claim long-horizon planning as the primary theme.
-3. Do not spend most of your time polishing the UI before training evidence exists.
-4. Do not submit with only benchmark numbers and no actual training proof.
-5. Do not overcomplicate the first training pipeline; minimal and real beats ambitious and broken.
+3. Do not imply the environment has real tool use or persistent memory when it does not.
+4. Do not spend most of your time polishing the UI before training evidence exists.
+5. Do not submit with only benchmark numbers and no actual training proof.
+6. Do not overcomplicate the first training pipeline; minimal and real beats ambitious and broken.
 
 ## 9. Submission Checklist
 
 - Theme clearly stated as Personalized Tasks
 - Niche clearly stated as online therapist-style support
+- Scope limits clearly stated
 - Problem statement visible near the top of the README
 - HF Space URL linked
 - OpenEnv manifest valid
