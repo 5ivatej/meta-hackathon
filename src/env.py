@@ -295,6 +295,7 @@ class ESCEnv:
             "turn": self._turn,
             "session_turn": self._session_turn,
             "session_index": self._session_index,
+            "sessions_total": self._task.sessions_total,
             "done": self._done,
             "cumulative_reward": self._cumulative_reward,
             "transcript": list(self._transcript),
@@ -314,10 +315,13 @@ class ESCEnv:
             "unfinished_threads": list(self._unfinished_threads),
             "recent_breakthrough": self._recent_breakthrough,
             "episode_budget_spent": self._episode_budget_spent,
+            "episode_budget_limit": self._task.cost_budget,
             "episode_time_spent": self._episode_time_spent,
+            "episode_time_limit": self._task.time_budget,
             "resume_checkpoint_id": self._resume_checkpoint_id,
             "continuity_score": self._continuity_score,
             "resume_count": self._resume_count,
+            "last_observation": self._last_obs.model_dump() if self._last_obs is not None else None,
         }
 
     @classmethod
@@ -365,7 +369,9 @@ class ESCEnv:
             },
             turn=int(seeker_data["turn"]),
         )
-        if env._transcript:
+        if data.get("last_observation"):
+            env._last_obs = Observation(**data["last_observation"])
+        elif env._transcript:
             last_seeker_text = next(
                 (entry["text"] for entry in reversed(env._transcript) if entry.get("role") == "seeker"),
                 task.persona.surface_concern,

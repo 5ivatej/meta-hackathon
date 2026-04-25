@@ -218,13 +218,68 @@ def build_prompt_records_from_simulation(records: Iterable[dict[str, Any]]) -> L
             {
                 "prompt": prompt,
                 "example_id": record.get("example_id"),
-                "task_id": record.get("task_id"),
+                "task_id": record.get("env_task_id") or record.get("task_id"),
                 "source": record.get("source"),
                 "emotion_type": record.get("emotion_type"),
                 "problem_type": record.get("problem_type"),
             }
         )
     return prompts
+
+
+def infer_task_id_for_seed(seed: SeedExample) -> str:
+    if seed.task_id and seed.task_id in TASKS:
+        return seed.task_id
+
+    text = " ".join(
+        part
+        for part in [
+            seed.scenario_brief,
+            seed.desired_outcome,
+            seed.emotion_type or "",
+            seed.problem_type or "",
+            " ".join(turn.get("content", "") for turn in seed.context_turns[-4:]),
+        ]
+        if part
+    ).lower()
+
+    crisis_markers = (
+        "dark thoughts",
+        "suicid",
+        "self-harm",
+        "hospital",
+        "late at night",
+        "panic",
+        "unsafe",
+        "overwhelmed",
+    )
+    relationship_markers = (
+        "partner",
+        "relationship",
+        "separat",
+        "divorce",
+        "break up",
+        "spare room",
+        "at home",
+    )
+    work_markers = (
+        "manager",
+        "deadline",
+        "coworker",
+        "burnout",
+        "work stress",
+        "job",
+        "office",
+        "inbox",
+    )
+
+    if any(marker in text for marker in crisis_markers):
+        return "crisis_fragile_trust"
+    if any(marker in text for marker in relationship_markers):
+        return "guarded_relationship"
+    if any(marker in text for marker in work_markers):
+        return "work_stress_venting"
+    return "work_stress_venting"
 
 
 def _coerce_context_turns(raw_turns: Any) -> List[dict[str, str]]:

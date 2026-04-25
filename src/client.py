@@ -1,8 +1,4 @@
-"""Async HTTP client mirroring the OpenEnv env interface.
-
-Used by inference.py to interact with the running FastAPI server (local or
-HF Space deployment).
-"""
+"""Async HTTP client mirroring the OpenEnv environment interface."""
 from __future__ import annotations
 
 from dataclasses import dataclass

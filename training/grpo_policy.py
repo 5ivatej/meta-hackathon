@@ -91,8 +91,8 @@ def _train_grpo(config: GRPOTrainingConfig, prompt_jsonl: str) -> None:
         batch = {key: value.to(device) for key, value in batch.items()}
         with torch.no_grad():
             logits = reward_model(**batch).logits
-            probs = torch.softmax(logits, dim=-1)[:, 1]
-        return [float(x) for x in probs.cpu().tolist()]
+            preds = logits.view(-1).float().clamp(0.0, 1.0)
+        return [float(x) for x in preds.cpu().tolist()]
 
     def think_format_reward_func(completions, **kwargs):
         completion_texts = [_normalize_completion_text(completion) for completion in completions]

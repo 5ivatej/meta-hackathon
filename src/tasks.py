@@ -1,4 +1,4 @@
-"""Multi-session task specifications for the ESC benchmark."""
+"""Multi-session task specifications for the therapy-assistant environment."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

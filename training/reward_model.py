@@ -1,4 +1,4 @@
-"""Stage 2: train a future-oriented reward model from simulated data."""
+"""Stage 2: train a scalar future-reward model from simulated data."""
 from __future__ import annotations
 
 import argparse
@@ -11,11 +11,10 @@ from .io import read_jsonl, write_jsonl
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train a binary future-oriented reward model.")
+    parser = argparse.ArgumentParser(description="Train a scalar future-oriented reward model.")
     parser.add_argument("--input-jsonl", required=True)
     parser.add_argument("--model-name", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--positive-threshold", type=float, default=0.65)
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--per-device-train-batch-size", type=int, default=2)
@@ -36,7 +35,6 @@ def main() -> None:
         per_device_eval_batch_size=args.per_device_eval_batch_size,
         num_train_epochs=args.num_train_epochs,
         eval_ratio=args.eval_ratio,
-        positive_threshold=args.positive_threshold,
         freeze_backbone=args.freeze_backbone,
     )
     _train_reward_model(config=config, input_jsonl=args.input_jsonl)
@@ -56,7 +54,7 @@ def _train_reward_model(config: RewardModelConfig, input_jsonl: str) -> None:
     if not raw_records:
         raise SystemExit(f"No records found in {input_jsonl}")
 
-    examples = [_convert_sim_record_to_classifier_example(record, config.positive_threshold) for record in raw_records]
+    examples = [_convert_sim_record_to_regression_example(record) for record in raw_records]
     dataset = Dataset.from_list(examples).shuffle(seed=42)
     if len(dataset) > 10 and config.eval_ratio > 0:
         split = dataset.train_test_split(test_size=config.eval_ratio, seed=42)
@@ -81,7 +79,11 @@ def _train_reward_model(config: RewardModelConfig, input_jsonl: str) -> None:
     if eval_dataset is not None:
         eval_dataset = eval_dataset.map(tokenize_batch, batched=True)
 
-    model = AutoModelForSequenceClassification.from_pretrained(config.model_name, num_labels=2)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        config.model_name,
+        num_labels=1,
+        problem_type="regression",
+    )
     if config.freeze_backbone:
         _freeze_backbone_parameters(model)
     training_args = TrainingArguments(
@@ -105,7 +107,7 @@ def _train_reward_model(config: RewardModelConfig, input_jsonl: str) -> None:
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer=tokenizer),
-        compute_metrics=_compute_classifier_metrics if eval_dataset is not None else None,
+        compute_metrics=_compute_regression_metrics if eval_dataset is not None else None,
     )
     trainer.train()
     trainer.save_model(config.output_dir)
@@ -123,7 +125,6 @@ def _train_reward_model(config: RewardModelConfig, input_jsonl: str) -> None:
         json.dumps(
             {
                 "source_jsonl": input_jsonl,
-                "positive_threshold": config.positive_threshold,
                 "model_name": config.model_name,
                 "freeze_backbone": config.freeze_backbone,
             },
@@ -133,22 +134,25 @@ def _train_reward_model(config: RewardModelConfig, input_jsonl: str) -> None:
     )
 
 
-def _convert_sim_record_to_classifier_example(record: dict[str, Any], positive_threshold: float) -> dict[str, Any]:
+def _convert_sim_record_to_regression_example(record: dict[str, Any]) -> dict[str, Any]:
     prompt = str(record.get("prompt_for_policy") or "").strip()
     response = str(record.get("response") or "").strip()
     reward = float(record.get("scalar_reward", 0.0))
     text = f"{prompt}\n\nAssistant response:\n{response}"
-    return {"text": text, "label": 1 if reward >= positive_threshold else 0}
+    return {"text": text, "label": reward}
 
 
-def _compute_classifier_metrics(eval_prediction: Any) -> dict[str, float]:
+def _compute_regression_metrics(eval_prediction: Any) -> dict[str, float]:
     import numpy as np
 
     logits, labels = eval_prediction
-    preds = np.argmax(logits, axis=-1)
-    accuracy = float((preds == labels).mean())
-    positive_rate = float(preds.mean()) if len(preds) else 0.0
-    return {"accuracy": accuracy, "positive_rate": positive_rate}
+    preds = np.asarray(logits).reshape(-1)
+    labels = np.asarray(labels).reshape(-1)
+    preds = np.clip(preds, 0.0, 1.0)
+    mse = float(np.mean((preds - labels) ** 2))
+    mae = float(np.mean(np.abs(preds - labels)))
+    corr = float(np.corrcoef(preds, labels)[0, 1]) if len(preds) > 1 else 0.0
+    return {"mse": mse, "mae": mae, "corr": corr}
 
 
 def _freeze_backbone_parameters(model) -> None:
@@ -167,64 +171,39 @@ def _write_reward_model_audit(trainer, eval_dataset, train_dataset, output_dir: 
     prediction_output = trainer.predict(audit_dataset)
     logits = prediction_output.predictions
     labels = prediction_output.label_ids
-    probs = _positive_class_probabilities(logits)
-    preds = np.argmax(logits, axis=-1)
+    preds = np.asarray(logits).reshape(-1)
+    labels = np.asarray(labels).reshape(-1)
+    preds = np.clip(preds, 0.0, 1.0)
 
     records = []
-    for idx, (prob, pred, label) in enumerate(zip(probs, preds, labels)):
+    for idx, (pred, label) in enumerate(zip(preds, labels)):
         row = audit_dataset[idx]
         records.append(
             {
                 "index": idx,
                 "text": row.get("text"),
-                "label": int(label),
-                "predicted_label": int(pred),
-                "positive_probability": float(prob),
-                "is_correct": bool(int(pred) == int(label)),
+                "target_reward": float(label),
+                "predicted_reward": float(pred),
+                "absolute_error": float(abs(pred - label)),
             }
         )
 
     audit_path = Path(output_dir) / "reward_model_audit.jsonl"
     write_jsonl(audit_path, records)
 
-    confusion = {"tp": 0, "tn": 0, "fp": 0, "fn": 0}
-    for record in records:
-        pred = record["predicted_label"]
-        label = record["label"]
-        if pred == 1 and label == 1:
-            confusion["tp"] += 1
-        elif pred == 0 and label == 0:
-            confusion["tn"] += 1
-        elif pred == 1 and label == 0:
-            confusion["fp"] += 1
-        else:
-            confusion["fn"] += 1
-
     summary = {
         "num_examples": len(records),
-        "accuracy": float(sum(1 for record in records if record["is_correct"]) / max(1, len(records))),
-        "avg_positive_probability": float(sum(record["positive_probability"] for record in records) / max(1, len(records))),
-        "confusion_matrix": confusion,
-        "top_false_positives": sorted(
-            [record for record in records if record["predicted_label"] == 1 and record["label"] == 0],
-            key=lambda item: item["positive_probability"],
+        "mse": float(np.mean([(record["predicted_reward"] - record["target_reward"]) ** 2 for record in records] or [0.0])),
+        "mae": float(np.mean([record["absolute_error"] for record in records] or [0.0])),
+        "top_overestimates": sorted(
+            records,
+            key=lambda item: item["predicted_reward"] - item["target_reward"],
             reverse=True,
         )[:20],
-        "top_false_negatives": sorted(
-            [record for record in records if record["predicted_label"] == 0 and record["label"] == 1],
-            key=lambda item: item["positive_probability"],
+        "top_underestimates": sorted(
+            records,
+            key=lambda item: item["predicted_reward"] - item["target_reward"],
         )[:20],
     }
     summary_path = Path(output_dir) / "reward_model_audit_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-
-
-def _positive_class_probabilities(logits) -> Any:
-    import numpy as np
-
-    if len(logits.shape) == 1:
-        return 1.0 / (1.0 + np.exp(-logits))
-    shifted = logits - logits.max(axis=-1, keepdims=True)
-    exp_logits = np.exp(shifted)
-    probs = exp_logits / exp_logits.sum(axis=-1, keepdims=True)
-    return probs[:, 1]

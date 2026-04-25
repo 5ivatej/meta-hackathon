@@ -1,4 +1,4 @@
-"""Stage 1: build Dr via 3-role multi-agent dialogue simulation."""
+"""Stage 1: build Dr via environment-aligned future rollouts."""
 from __future__ import annotations
 
 import argparse
@@ -8,12 +8,12 @@ from typing import List
 
 from .critic import FutureRewardCritic, FutureRewardResult
 from .config import EndpointConfig, SimulationConfig
-from .datasets import SeedExample, load_seed_examples
+from .datasets import SeedExample, infer_task_id_for_seed, load_seed_examples
 from .io import append_jsonl
 from .llm import build_client, chat_text, extract_response_text
 from .memory import EpisodeMemory
 from .prompts import build_policy_messages
-from .simulator import UserSimulator
+from .simulator import EnvironmentSimulator
 
 
 @dataclass
@@ -21,6 +21,7 @@ class CandidateRecord:
     example_id: str
     source: str
     task_id: str | None
+    env_task_id: str
     emotion_type: str | None
     problem_type: str | None
     turn_index: int
@@ -33,11 +34,15 @@ class CandidateRecord:
     completed: bool
     rollout_steps_used: int
     rationale: str
+    env_final_score: float
+    env_final_success: float
+    env_cumulative_reward: float
+    env_stage: str
     ground_truth_response: str | None = None
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run 3-role simulation and build candidate reward data.")
+    parser = argparse.ArgumentParser(description="Run environment-aligned simulation and build candidate reward data.")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--examples-source", choices=["tasks", "jsonl", "esconv_hf", "extes_hf", "extes_jsonl"], default="tasks")
     parser.add_argument("--input-jsonl")
@@ -45,28 +50,22 @@ def main() -> None:
     parser.add_argument("--dataset-split", default="train")
     parser.add_argument("--max-seed-examples", type=int)
     parser.add_argument("--policy-model", required=True)
-    parser.add_argument("--user-model", required=True)
     parser.add_argument("--critic-model", required=True)
-    parser.add_argument("--summary-model")
     parser.add_argument("--episodes-per-seed", type=int, default=2)
     parser.add_argument("--num-candidates", type=int, default=4)
     parser.add_argument("--rollout-steps", type=int, default=6)
     parser.add_argument("--max-turns", type=int, default=16)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--rollout-temperature", type=float, default=0.3)
     parser.add_argument("--max-completion-tokens", type=int, default=220)
-    parser.add_argument("--summary-every-n-turns", type=int, default=4)
     parser.add_argument("--max-recent-turns-in-prompt", type=int, default=8)
-    parser.add_argument("--critic-completion-threshold", type=float, default=0.8)
-    parser.add_argument("--success-turn-bonus", type=float, default=1.0)
     args = parser.parse_args()
 
     endpoint = EndpointConfig.from_env()
     client = build_client(endpoint)
     config = SimulationConfig(
         policy_model=args.policy_model,
-        user_model=args.user_model,
         critic_model=args.critic_model,
-        summary_model=args.summary_model,
         dataset_name=args.dataset_name,
         dataset_split=args.dataset_split,
         max_seed_examples=args.max_seed_examples,
@@ -76,10 +75,8 @@ def main() -> None:
         max_turns=args.max_turns,
         max_completion_tokens=args.max_completion_tokens,
         temperature=args.temperature,
-        summary_every_n_turns=args.summary_every_n_turns,
+        rollout_temperature=args.rollout_temperature,
         max_recent_turns_in_prompt=args.max_recent_turns_in_prompt,
-        critic_completion_threshold=args.critic_completion_threshold,
-        success_turn_bonus=args.success_turn_bonus,
     )
 
     output_dir = Path(args.output_dir)
@@ -97,12 +94,14 @@ def main() -> None:
         dataset_split=args.dataset_split,
         max_examples=args.max_seed_examples,
     )
+    critic = FutureRewardCritic(client=client, config=config)
     for seed in seeds:
         for episode_index in range(config.episodes_per_seed):
             _run_episode(
                 client=client,
                 seed=seed,
                 config=config,
+                critic=critic,
                 episode_index=episode_index,
                 candidate_path=candidate_path,
                 trajectory_path=trajectory_path,
@@ -113,33 +112,36 @@ def _run_episode(
     client,
     seed: SeedExample,
     config: SimulationConfig,
+    critic: FutureRewardCritic,
     episode_index: int,
     candidate_path: Path,
     trajectory_path: Path,
 ) -> None:
-    transcript: List[dict[str, str]] = [dict(turn) for turn in seed.context_turns]
+    env_task_id = infer_task_id_for_seed(seed)
+    simulator = EnvironmentSimulator(task_id=env_task_id)
     memory = EpisodeMemory()
-    for turn in transcript:
+    for turn in seed.context_turns:
         if turn["role"] == "user":
             memory.note_user_message(turn["content"])
         else:
             memory.note_assistant_message(turn["content"])
-    chosen_turns: List[dict[str, object]] = []
-    simulator = UserSimulator(client=client, config=config)
-    critic = FutureRewardCritic(client=client, config=config)
+    memory.sync_from_env(simulator.export_state())
+    memory.refresh_summary()
 
+    chosen_turns: List[dict[str, object]] = []
     for turn_index in range(config.max_turns):
+        env_state = simulator.export_state()
+        transcript = simulator.transcript_for_chat()
         policy_messages = build_policy_messages(
             seed=seed,
             transcript=transcript,
             memory=memory,
+            env_state=env_state,
             max_recent_turns=config.max_recent_turns_in_prompt,
         )
         prompt_for_policy = policy_messages[-1]["content"]
 
-        candidate_records: List[CandidateRecord] = []
         best_record: CandidateRecord | None = None
-
         for candidate_index in range(config.num_candidates):
             raw_candidate = chat_text(
                 client=client,
@@ -153,16 +155,16 @@ def _run_episode(
                 client=client,
                 seed=seed,
                 config=config,
-                transcript=transcript,
                 memory=memory,
+                env_state=env_state,
                 initial_response=response,
-                simulator=simulator,
                 critic=critic,
             )
             record = CandidateRecord(
                 example_id=seed.example_id,
                 source=seed.source,
                 task_id=seed.task_id,
+                env_task_id=env_task_id,
                 emotion_type=seed.emotion_type,
                 problem_type=seed.problem_type,
                 turn_index=turn_index,
@@ -175,9 +177,12 @@ def _run_episode(
                 completed=reward_result.goal_achieved,
                 rollout_steps_used=reward_result.steps_used,
                 rationale=reward_result.rationale,
+                env_final_score=reward_result.env_final_score,
+                env_final_success=reward_result.env_final_success,
+                env_cumulative_reward=reward_result.env_cumulative_reward,
+                env_stage=reward_result.env_stage,
                 ground_truth_response=seed.ground_truth_response,
             )
-            candidate_records.append(record)
             append_jsonl(candidate_path, asdict(record))
             if best_record is None or record.scalar_reward > best_record.scalar_reward:
                 best_record = record
@@ -185,15 +190,12 @@ def _run_episode(
         if best_record is None:
             raise RuntimeError("No candidate response was produced.")
 
-        transcript.append({"role": "assistant", "content": best_record.response})
+        live_step = simulator.step_assistant(best_record.response)
         memory.note_assistant_message(best_record.response)
-
-        user_turn = simulator.generate_turn(seed=seed, transcript=transcript, memory=memory)
-        transcript.append({"role": "user", "content": user_turn.user_message})
-        simulator.apply_turn_to_memory(memory=memory, turn=user_turn)
-
-        if (turn_index + 1) % max(1, config.summary_every_n_turns) == 0:
-            simulator.refresh_summary(seed=seed, transcript=transcript, memory=memory)
+        if live_step.user_message:
+            memory.note_user_message(live_step.user_message)
+        memory.sync_from_env(live_step.env_state, live_step.info)
+        memory.refresh_summary()
 
         chosen_turns.append(
             {
@@ -202,10 +204,13 @@ def _run_episode(
                 "reward": best_record.scalar_reward,
                 "completed_after_rollout": best_record.completed,
                 "terminal_score": best_record.terminal_score,
+                "env_final_score": best_record.env_final_score,
+                "env_final_success": best_record.env_final_success,
+                "env_stage": best_record.env_stage,
             }
         )
 
-        if user_turn.completed or best_record.completed:
+        if live_step.done:
             break
 
     append_jsonl(
@@ -215,9 +220,11 @@ def _run_episode(
             "example_id": seed.example_id,
             "source": seed.source,
             "task_id": seed.task_id,
+            "env_task_id": env_task_id,
             "turns": chosen_turns,
             "final_memory": memory.render_for_prompt(),
-            "transcript": transcript,
+            "env_state": simulator.export_state(),
+            "transcript": simulator.transcript_for_chat(),
         },
     )
 
@@ -226,67 +233,75 @@ def _evaluate_candidate(
     client,
     seed: SeedExample,
     config: SimulationConfig,
-    transcript: List[dict[str, str]],
     memory: EpisodeMemory,
+    env_state: dict,
     initial_response: str,
-    simulator: UserSimulator,
     critic: FutureRewardCritic,
 ) -> FutureRewardResult:
-    sim_transcript = [dict(entry) for entry in transcript]
+    simulator = EnvironmentSimulator.from_exported_state(env_state)
     sim_memory = memory.clone()
+    rollout_rewards: List[float] = []
 
-    sim_transcript.append({"role": "assistant", "content": initial_response})
+    final_transition = simulator.step_assistant(initial_response)
+    rollout_rewards.append(final_transition.reward)
     sim_memory.note_assistant_message(initial_response)
+    if final_transition.user_message:
+        sim_memory.note_user_message(final_transition.user_message)
+    sim_memory.sync_from_env(final_transition.env_state, final_transition.info)
+    sim_memory.refresh_summary()
 
-    steps_used = 0
-    terminal_judgment = critic.evaluate(seed=seed, transcript=sim_transcript, memory=sim_memory)
-    if terminal_judgment.goal_achieved:
-        return FutureRewardResult(
-            reward=critic.compute_future_reward(terminal_judgment.score, steps_used=1),
-            terminal_score=terminal_judgment.score,
-            goal_achieved=True,
-            steps_used=1,
-            rationale=terminal_judgment.rationale,
+    for _ in range(config.rollout_steps):
+        if final_transition.done:
+            break
+        rollout_messages = build_policy_messages(
+            seed=seed,
+            transcript=simulator.transcript_for_chat(),
+            memory=sim_memory,
+            env_state=simulator.export_state(),
+            max_recent_turns=config.max_recent_turns_in_prompt,
         )
-
-    for rollout_step in range(1, config.rollout_steps + 1):
-        user_turn = simulator.generate_turn(seed=seed, transcript=sim_transcript, memory=sim_memory)
-        sim_transcript.append({"role": "user", "content": user_turn.user_message})
-        simulator.apply_turn_to_memory(memory=sim_memory, turn=user_turn)
-        steps_used = rollout_step
-
-        terminal_judgment = critic.evaluate(seed=seed, transcript=sim_transcript, memory=sim_memory)
-        if user_turn.completed or terminal_judgment.goal_achieved or rollout_step == config.rollout_steps:
-            reward = critic.compute_future_reward(terminal_judgment.score, steps_used=rollout_step + 1)
-            return FutureRewardResult(
-                reward=reward,
-                terminal_score=terminal_judgment.score,
-                goal_achieved=user_turn.completed or terminal_judgment.goal_achieved,
-                steps_used=rollout_step + 1,
-                rationale=terminal_judgment.rationale,
-            )
-
-        rollout_response = chat_text(
+        raw_rollout = chat_text(
             client=client,
             model=config.policy_model,
-            messages=build_policy_messages(
-                seed=seed,
-                transcript=sim_transcript,
-                memory=sim_memory,
-                max_recent_turns=config.max_recent_turns_in_prompt,
-            ),
-            temperature=config.temperature,
+            messages=rollout_messages,
+            temperature=config.rollout_temperature,
             max_tokens=config.max_completion_tokens,
         )
-        _, rollout_text = extract_response_text(rollout_response)
-        sim_transcript.append({"role": "assistant", "content": rollout_text})
-        sim_memory.note_assistant_message(rollout_text)
+        _, rollout_response = extract_response_text(raw_rollout)
+        final_transition = simulator.step_assistant(rollout_response)
+        rollout_rewards.append(final_transition.reward)
+        sim_memory.note_assistant_message(rollout_response)
+        if final_transition.user_message:
+            sim_memory.note_user_message(final_transition.user_message)
+        sim_memory.sync_from_env(final_transition.env_state, final_transition.info)
+        sim_memory.refresh_summary()
 
-    reward = critic.compute_future_reward(terminal_judgment.score, steps_used=max(1, steps_used))
+    terminal_judgment = critic.evaluate(
+        seed=seed,
+        transcript=simulator.transcript_for_chat(),
+        memory=sim_memory,
+        env_state=simulator.export_state(),
+        rollout_step_rewards=rollout_rewards,
+        final_info=final_transition.info,
+    )
+    final_score = 0.0
+    final_success = 0.0
+    if isinstance(final_transition.info.get("final"), dict):
+        final_score = float(final_transition.info["final"].get("score", 0.0))
+        final_success = float(final_transition.info["final"].get("success", 0.0))
+
     return FutureRewardResult(
-        reward=reward,
+        reward=critic.compute_future_reward(terminal_judgment.score),
         terminal_score=terminal_judgment.score,
         goal_achieved=terminal_judgment.goal_achieved,
-        steps_used=max(1, steps_used),
+        steps_used=len(rollout_rewards),
         rationale=terminal_judgment.rationale,
+        env_final_score=final_score,
+        env_final_success=final_success,
+        env_cumulative_reward=float(simulator.export_state().get("cumulative_reward", 0.0)),
+        env_stage=str((simulator.export_state().get("seeker") or {}).get("stage", "unknown")),
     )
+
+
+if __name__ == "__main__":
+    main()

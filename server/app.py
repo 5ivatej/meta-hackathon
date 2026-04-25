@@ -29,12 +29,12 @@ from src.env import ESCEnv
 from src.models import ResetRequest, StepRequest
 
 app = FastAPI(
-    title="Emotional Support Conversations (OpenEnv)",
+    title="Therapy Assistant OpenEnv",
     version="0.1.0",
     description=(
-        "An OpenEnv environment for open-ended emotional support "
-        "conversations. Reward shaping inspired by RLFF-ESC "
-        "(arXiv:2508.12935)."
+        "An OpenEnv training environment for a long-horizon personal "
+        "therapy assistant with future-oriented rewards inspired by "
+        "RLFF-ESC (arXiv:2508.12935)."
     ),
 )
 
@@ -196,10 +196,10 @@ UI_HTML = """<!doctype html>
   <body>
     <div class="shell">
       <div class="hero">
-        <h1>Emotional Support Conversations</h1>
+        <h1>Therapy Assistant OpenEnv</h1>
         <p class="sub">
-          Interactive browser playground for the deterministic OpenEnv benchmark.
-          The API stays unchanged; this page just calls <code>/tasks</code>,
+          Interactive browser sandbox for the personal therapy assistant
+          training environment. The API stays unchanged; this page just calls <code>/tasks</code>,
           <code>/reset</code>, <code>/step</code>, and <code>/state</code>.
         </p>
       </div>

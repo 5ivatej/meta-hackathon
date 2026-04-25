@@ -1,83 +1,84 @@
 ---
-title: Emotional Support Conversations (OpenEnv)
-emoji: "💬"
+title: Therapy Assistant OpenEnv
+emoji: "🧠"
 sdk: docker
 pinned: false
 tags:
   - openenv
+  - emotional-support
+  - personal-therapy-assistant
+  - long-horizon
 ---
 
-# Emotional Support Conversations - OpenEnv Environment
+# Therapy Assistant OpenEnv
 
-> An OpenEnv RL environment for evaluating agents on open-ended emotional
-> support conversations, with a hybrid immediate + future-oriented reward
-> signal inspired by RLFF-ESC (Yang, Chen, Wang, 2025,
-> [arXiv:2508.12935](https://arxiv.org/abs/2508.12935)).
+OpenEnv training environment for a long-horizon personal therapy assistant.
 
-## Why this environment
+This project is built for the OpenEnv Hackathon 2026. The core claim is:
 
-Emotional support is one of the tasks humans most want AI assistants to do
-well, and one of the easiest to do badly. Existing dialogue benchmarks often
-score turn-level responses in isolation, which rewards agents for sounding
-empathetic without testing whether their replies actually move the person
-toward resolution. This environment closes that gap.
+> train a therapy-style assistant to optimize future user outcomes, not just
+> locally empathetic one-turn replies.
 
-Three properties make it a genuine RL problem, not a single-shot dialogue
-task:
+## Why this matters
 
-1. Partial observability. The seeker's distress, trust, and willingness to
-   reveal their real issue are hidden state. The agent must infer them from
-   the conversation so far.
-2. Sequential credit assignment. A warm reply at turn 2 can unlock a
-   disclosure at turn 6. A single dismissive reply at turn 4 can collapse the
-   whole trajectory and require several turns to recover.
-3. Exploration vs commitment. Should the agent keep exploring feelings or move
-   toward an action plan? Commit too early and the seeker shuts down; explore
-   too long and the episode times out.
+Emotional support is a hard personalized task for LLMs because:
 
-## Reward design (RLFF-ESC-inspired)
+- the user's real issue is often hidden at the start
+- strong responses only pay off after several turns or sessions
+- premature advice damages trust
+- safety handling must stay calm, timely, and continuous
 
-Each step reward is:
+This environment is designed to make those failures trainable.
 
-```text
-step_reward = clip(0.45 * immediate + 0.55 * future_oriented - penalties, 0, 1)
-```
+## Competition fit
 
-- `immediate`: stage-appropriate empathy/validation/open-question fit, plus
-  turn-level deltas in the seeker's trust and distress.
-- `future_oriented`: a k-step oracle rollout from both the pre- and
-  post-action seeker states. The reward is proportional to how much the
-  agent's action preserves or advances the attainable resolution ceiling, not
-  just how good the current turn looks in isolation.
-- `penalties`: dismissive language, premature advice, bare replies,
-  interrogation, and repeated template-like responses.
+The strongest fit is:
 
-A final task score combines average shaped reward, the seeker's final
-resolution state, efficiency, and a completion bonus. Success is hard-gated:
-timing out with a generic but non-harmful conversation can still earn partial
-score, but it does not count as a solved episode.
+- Theme #2: long-horizon planning and instruction following
+- Theme #3.2: personalized tasks
 
-## Tasks (3 difficulties)
+The environment trains a model to:
 
-| Task ID | Difficulty | Max turns | Core challenge |
-| --- | --- | ---: | --- |
-| `work_stress_venting` | easy | 10 | Cooperative seeker venting about work. Must reach closing with trust >= 0.70 and distress <= 0.40. |
-| `guarded_relationship` | medium | 12 | Guarded seeker; real issue is hidden behind the surface concern until openness >= 0.75. Must reveal the true issue and finish in closing with trust >= 0.72 and distress <= 0.45. |
-| `crisis_fragile_trust` | hard | 14 | High-distress, fragile trust, multiple interleaved concerns. Must reveal the crisis concern, reference external safety support, and finish in closing with trust >= 0.75 and distress <= 0.40. |
+- infer hidden emotional state
+- recover from early mistakes
+- track continuity across sessions
+- decide when to explore, reflect, plan, or escalate for safety
 
-Success thresholds (final score) are `0.60 / 0.62 / 0.65` respectively, and
-they are only evaluated after the task-specific completion conditions are met.
+## Environment design
 
-## Action and observation space
+The OpenEnv environment lives in:
 
-Action is a free-text reply to the seeker:
+- [src/env.py](src/env.py)
+- [src/tasks.py](src/tasks.py)
+- [src/seeker.py](src/seeker.py)
+- [src/grader.py](src/grader.py)
+
+Key properties:
+
+- multi-session therapy arcs
+- hidden user state: trust, distress, openness, reveal progress
+- delayed consequences and hard recovery
+- continuity, budget, and time constraints
+- hard-gated success conditions
+
+### Built-in therapy arcs
+
+| Task ID | Difficulty | What the agent must do |
+| --- | --- | --- |
+| `work_stress_venting` | easy | Build alliance, surface burnout, and move toward one realistic recovery step |
+| `guarded_relationship` | medium | Earn trust before the real issue is disclosed, then help the user name and plan carefully |
+| `crisis_fragile_trust` | hard | Preserve fragile trust, handle risk safely, and carry support forward across sessions |
+
+### Action / observation
+
+Action is free-text:
 
 ```python
 class Action(BaseModel):
     message: str
 ```
 
-Observation is deliberately partial:
+Observation is partially observable:
 
 ```python
 class Observation(BaseModel):
@@ -89,198 +90,158 @@ class Observation(BaseModel):
     scenario_brief: str
 ```
 
-The seeker's internal hidden variables are never exposed.
+The environment tracks much more hidden state internally, including continuity,
+working goals, memory summary, budget usage, and session index.
 
-## Environment internals
+## Reward design
 
-The seeker is a deterministic finite-state machine with continuous hidden
-variables (`distress`, `trust`, `openness`, `revealed`, `stage`). On each
-turn, the agent's reply is analyzed with keyword and regex feature detectors,
-then hidden state advances via transparent rules.
+The reward is designed around future trajectory quality, not only local style.
 
-Why not use an LLM-driven seeker? The hackathon rubric requires graders to be
-deterministic and reproducible. An LLM-driven seeker would risk score variance
-between runs. Deterministic dynamics give full reproducibility while still
-producing rich, sequential, partially observable dialogue with genuine
-recovery-from-mistakes dynamics.
+At a high level it combines:
 
-## HTTP API (OpenEnv spec)
+- immediate conversational quality
+- future-oriented trajectory value
+- anti-gaming penalties
+- long-horizon continuity terms
 
-| Method | Path | Body | Returns |
-| --- | --- | --- | --- |
-| `GET` | `/` | none | health + metadata |
-| `GET` | `/tasks` | none | list of tasks |
-| `POST` | `/reset` | `{"task_id": "...", "seed": null}` | `ResetResult` |
-| `POST` | `/step` | `{"action": {"message": "..."}}` | `StepResult` |
-| `GET` | `/state` | none | `EnvState` |
+The project’s training stack then learns from that idea using:
 
-## Running locally
+- multi-agent simulation
+- a learned future-oriented reward model
+- GRPO policy optimization
 
-```bash
-# 1. Install deps
-pip install -r requirements.txt
+## Current methodology
 
-# 2. Start the environment server
-uvicorn server:app --host 0.0.0.0 --port 7860
+The active training stack is in [training/](training/).
 
-# 3. In another shell, run the baseline inference
-export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=gpt-4.1-mini
-export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://127.0.0.1:7860
-python3 inference.py
-```
+### Stage 1: multi-agent simulation
 
-`inference.py` uses the OpenAI client and expects `API_BASE_URL` plus
-`MODEL_NAME`. For authentication it accepts `HF_TOKEN` (preferred for Hugging
-Face Router), `OPENAI_API_KEY`, or `API_KEY`.
+- the policy proposes candidate therapist responses
+- `ESCEnv` itself rolls the dialogue forward with hidden long-horizon state
+- a separated critic scores future trajectory quality using the env summary
 
-## Running via Docker
+Entry point:
 
 ```bash
-docker build -t esc-openenv .
-docker run -p 7860:7860 esc-openenv
+python -m training.simulate_dialogues ...
 ```
 
-## Skills / agents extension
+### Stage 2: reward model
 
-The environment itself stays deterministic and reproducible. To align with the
-hackathon's optional skills/agents framing, this repo also includes a
-policy-side agentic controller that routes between five reusable skills:
-`empathize`, `validate`, `explore`, `plan`, and `safety_escalate`.
+- train a scalar future-oriented reward regressor
+- keep the backbone frozen by default
+- write audit files for overestimates / underestimates
 
-This keeps the benchmark honest:
-
-- the environment and grader remain unchanged
-- the agentic story lives in the policy, not in a hidden stochastic seeker
-- judges can inspect turn-by-turn routing traces in the benchmark outputs
-
-## Benchmarking
-
-### Deterministic local benchmark ladder
-
-Run the built-in rubric ladder and write reusable Markdown/JSON artifacts:
+Entry point:
 
 ```bash
-py -3 benchmark.py
+python -m training.reward_model ...
 ```
 
-Outputs:
+### Stage 3: GRPO
 
-- `results/local_benchmarks.md`
-- `results/local_benchmarks.json`
+- optimize the policy using the learned reward model
+- add `<think>...</think><response>...</response>` format reward
 
-### Deterministic skill-routed benchmark
-
-Run the explicit agentic baseline comparison and write route-aware artifacts:
+Entry point:
 
 ```bash
-py -3 benchmark_agentic.py
+accelerate launch -m training.grpo_policy ...
 ```
 
-Outputs:
+## Datasets
 
-- `results/agentic_benchmarks.md`
-- `results/agentic_benchmarks.json`
+Supported training seeds:
 
-### LLM benchmark with Markdown output
+- `esconv_hf`
+- `extes_hf`
+- `extes_jsonl`
+- `jsonl`
+- `tasks` for ablations only
 
-When you have a real model endpoint and token, run:
+For submission-quality training, prefer real dialogue prefixes from ESConv or ExTES over handcrafted task seeds.
+
+See:
+
+- [TRAINING_PIPELINE.md](docs/TRAINING_PIPELINE.md)
+- [EXTES_PREPROCESSING_SCHEMA.md](docs/EXTES_PREPROCESSING_SCHEMA.md)
+- [RESEARCH_TASK_ANALYSIS.md](docs/RESEARCH_TASK_ANALYSIS.md)
+
+## Quickstart
+
+### 1. Install
 
 ```bash
-export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=gpt-4.1-mini
-export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://127.0.0.1:7860
-python3 benchmark_llm.py
+pip install -r requirements-training.txt
 ```
 
-Outputs:
-
-- `results/llm_benchmark.md`
-- `results/llm_benchmark.json`
-
-### Skill-routed LLM benchmark
-
-Use the same environment endpoint, but add the policy-side router and skill
-traces around the model:
+### 2. Run the OpenEnv server
 
 ```bash
-export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=gpt-4.1-mini
-export HF_TOKEN=<your-hf-token>
-export ESC_ENV_URL=http://127.0.0.1:7860
-python3 benchmark_agentic_llm.py
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
-Outputs:
+### 3. Generate simulation data
 
-- `results/agentic_llm_benchmark.md`
-- `results/agentic_llm_benchmark.json`
-
-## Baseline scores
-
-Deterministic local numbers below were generated with `py -3 benchmark.py`.
-The submitted hosted baseline below comes from a live `inference.py` run
-against the deployed Hugging Face Space using `gpt-4.1-mini`.
-
-### Deterministic baselines
-
-| Baseline | Avg score | Success rate | Notes |
-| --- | ---: | ---: | --- |
-| `generic_template` | 0.393 | 0.00 | Safe-sounding repeated empathy; no task completion |
-| `validation_only` | 0.539 | 0.00 | Better partial reward, still fails hard-gated completion |
-| `stage_aware_heuristic` | 0.821 | 1.00 | Task-aware staged policy; completes all 3 tasks |
-
-### Skill-routed agentic baselines
-
-| Baseline | Avg score | Success rate | Notes |
-| --- | ---: | ---: | --- |
-| `skill_routed_deterministic` | 0.821 | 1.00 | Explicit router over `empathize` / `validate` / `explore` / `plan` / `safety_escalate`; matches the strong staged baseline while exposing route traces |
-
-### Submitted Hosted LLM Baseline
-
-| Model | Avg score | Success rate | Notes |
-| --- | ---: | ---: | --- |
-| `gpt-4.1-mini` | 0.821 | 1.00 | Live `inference.py` run against [`5ivatej-meta-hackathon.hf.space`](https://5ivatej-meta-hackathon.hf.space) |
-
-The deterministic ladder separates surface-level empathy from task completion:
-the generic repeated-empathy template does not solve any task, while the
-stage-aware heuristic completes all three. The submitted `gpt-4.1-mini`
-baseline also completes all three tasks because the policy-side controller
-keeps the conversation stage-aware instead of drifting into endless reflection.
-
-## Files
-
-```text
-.
-|-- openenv.yaml             # OpenEnv metadata
-|-- Dockerfile               # Container build for HF Space
-|-- benchmark.py             # Deterministic local benchmark ladder
-|-- benchmark_agentic.py     # Deterministic skill-routed benchmark
-|-- benchmark_agentic_llm.py # Skill-routed LLM benchmark
-|-- benchmark_llm.py         # LLM benchmark that writes Markdown/JSON
-|-- requirements.txt
-|-- server.py                # FastAPI HTTP server (entrypoint)
-|-- inference.py             # Mandated baseline inference script
-|-- SUBMISSION_NEXT_STEPS.md # Manual checklist before final submission
-|-- README.md
-`-- src/
-    |-- __init__.py
-    |-- agentic.py           # Skill router + reusable policy-side skills
-    |-- baselines.py         # Deterministic baseline policies
-    |-- models.py            # Pydantic Action / Observation / Reward / envelopes
-    |-- seeker.py            # Deterministic seeker simulator + feature detectors
-    |-- tasks.py             # 3 task personas (easy / medium / hard)
-    |-- grader.py            # Hybrid immediate + future-oriented reward
-    |-- env.py               # Core ESCEnv with step/reset/state
-    `-- client.py            # Async HTTP client for inference.py
+```bash
+python -m training.simulate_dialogues \
+  --output-dir artifacts/sim_data \
+  --examples-source esconv_hf \
+  --dataset-name thu-coai/esconv \
+  --policy-model Qwen/Qwen2.5-3B-Instruct \
+  --critic-model Qwen/Qwen2.5-7B-Instruct
 ```
+
+### 4. Train the reward model
+
+```bash
+python -m training.reward_model \
+  --input-jsonl artifacts/sim_data/candidate_rewards.jsonl \
+  --model-name Qwen/Qwen2.5-0.5B-Instruct \
+  --output-dir artifacts/reward_model
+```
+
+### 5. Run GRPO
+
+```bash
+accelerate launch -m training.grpo_policy \
+  --prompt-jsonl artifacts/sim_data/candidate_rewards.jsonl \
+  --model-name Qwen/Qwen2.5-3B-Instruct \
+  --reward-model-dir artifacts/reward_model \
+  --output-dir artifacts/grpo_policy
+```
+
+For Colab, see [COLAB_README.md](docs/COLAB_README.md) and [Therapy_Assistant_OpenEnv_Colab.ipynb](docs/Therapy_Assistant_OpenEnv_Colab.ipynb).
+
+## What judges should see
+
+The strongest submission package is:
+
+- one sharp problem statement
+- one clean explanation of hidden state and delayed reward
+- one before/after demo transcript
+- one reward curve
+- one eval table
+- one short demo video
+
+The right story is not “we built a benchmark.”
+
+The right story is:
+
+> we built a trainable long-horizon therapy assistant environment with
+> future-oriented rewards and measurable post-training improvement.
+
+## Deployment
+
+The repo includes:
+
+- OpenEnv-compatible server in [server/app.py](server/app.py)
+- Docker packaging via [Dockerfile](Dockerfile)
+- local orchestration via [docker-compose.yml](docker-compose.yml)
 
 ## Citation
 
-If you use this environment, please cite the paper whose reward idea inspired
-it:
+The reward idea is inspired by:
 
 ```bibtex
 @article{yang2025rlffesc,

@@ -24,9 +24,7 @@ class EndpointConfig:
 @dataclass
 class SimulationConfig:
     policy_model: str
-    user_model: str
     critic_model: str
-    summary_model: str | None = None
     dataset_name: str | None = None
     dataset_split: str = "train"
     max_seed_examples: int | None = None
@@ -36,10 +34,8 @@ class SimulationConfig:
     max_turns: int = 16
     max_completion_tokens: int = 220
     temperature: float = 0.7
-    summary_every_n_turns: int = 4
+    rollout_temperature: float = 0.3
     max_recent_turns_in_prompt: int = 8
-    critic_completion_threshold: float = 0.8
-    success_turn_bonus: float = 1.0
 
 
 @dataclass
@@ -52,7 +48,6 @@ class RewardModelConfig:
     per_device_eval_batch_size: int = 2
     num_train_epochs: float = 1.0
     eval_ratio: float = 0.1
-    positive_threshold: float = 0.65
     freeze_backbone: bool = True
 
 
