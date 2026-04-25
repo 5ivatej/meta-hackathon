@@ -84,16 +84,17 @@ Why:
 
 Scope boundary:
 
-- This fit does **not** depend on adding external tools, cross-session memory, or a richer world simulator.
-- The current version is still valid as a focused personalized-conversation environment.
+- This fit does **not** depend on adding external tools.
+- You can still strengthen the submission substantially by adding cross-session memory, longer horizons, and persistence without adding tool use.
 
-### Weak Secondary Fit: Theme 2 Long-Horizon Planning
+### Strong Secondary Fit: Theme 2 Long-Horizon Planning
 
-There is some fit because:
+There is a credible Theme 2 path because:
 
 - mistakes have delayed effects
 - the reward is sequential
 - the agent must manage stage transitions over multiple turns
+- the hidden state already provides a foundation for longer-horizon state tracking
 
 But it is still weak for Round 2 Theme 2 because:
 
@@ -102,12 +103,23 @@ But it is still weak for Round 2 Theme 2 because:
 - there is no beyond-context persistence problem
 - there is no truly long-running workflow
 
+These should now be treated as **current gaps to build**, not fixed product boundaries.
+
+If you add:
+
+- cross-session memory
+- longer episode structures
+- persistent state across sessions
+- delayed rewards across longer therapeutic trajectories
+
+then the project becomes a real **Theme 2 + Theme 3.2 hybrid** even without tool calling.
+
 ### Poor Fit for the Other Themes
 
 | Theme | Alignment | Why |
 | --- | ---: | --- |
 | Multi-Agent Interactions | 20/100 | Only one active agent; the seeker is a simulator, not a strategic second agent. |
-| Long-Horizon Planning | 35/100 | Sequential and partially observable, but still short-horizon. |
+| Long-Horizon Planning | 35/100 today, higher after extension | Sequential and partially observable already, with a clear upgrade path to persistent multi-session planning. |
 | World Modeling: Professional Tasks | 15/100 | No real external tools, APIs, or enterprise workflow loop. |
 | World Modeling: Personalized Tasks | 82/100 | Strong direct fit. |
 | Self-Improvement | 10/100 | No self-play, curriculum generation, or adaptive challenge creation. |
@@ -174,6 +186,24 @@ Why it is not higher:
 
 These are acceptable constraints for Theme 3.2, but they cap how ambitious the environment feels.
 
+### A2. Planned Extended Alignment
+
+If you implement the extensions you described:
+
+- cross-session memory
+- longer horizons
+- beyond-context persistence
+- longer-running therapeutic workflows
+
+then the project shifts from a narrow Theme 3.2 submission to a stronger **Theme 2 + Theme 3.2** submission.
+
+Projected alignment after those changes:
+
+| Theme | Projected alignment | Why |
+| --- | ---: | --- |
+| Long-Horizon Planning | 75/100 | Persistent memory and long-running therapeutic trajectories directly address the theme. |
+| Personalized Tasks | 85/100 | The therapy niche remains strong and becomes more realistic. |
+
 ### B. Submission Readiness Against Round 2 Judging
 
 If judges reviewed the repo in its current state as a Round 2 submission, the score would be much lower because the mandatory training proof is missing.
@@ -190,9 +220,9 @@ If judges reviewed the repo in its current state as a Round 2 submission, the sc
 
 **Estimated current Round 2 readiness: 52/100**
 
-## 8. Current Scope Boundaries
+## 8. Current State Gaps
 
-The current repo should explicitly present these as deliberate design boundaries:
+The current repo should explicitly present these as **current-state gaps**, not permanent boundaries:
 
 - no real tool use
 - no longer-term memory across sessions
@@ -208,9 +238,10 @@ Why this is still defensible:
 What this means strategically:
 
 - do not pitch it as a professional workflow environment
-- do not pitch it as a long-horizon memory benchmark
+- do not pitch it as a long-horizon memory benchmark until those features are built
 - do not promise a rich personal world simulator that does not exist
 - do pitch it as a focused personalized conversation environment with hidden state and safety-sensitive timing
+- and once the planned extensions exist, re-pitch it as a Theme 2 + Theme 3.2 hybrid
 
 ## 9. What Is Already Strong
 
@@ -237,15 +268,17 @@ Do **not** throw away the repo.
 
 The practical move is:
 
-1. Reframe the submission around **Theme 3.2 Personalized Tasks**.
-2. Keep the current environment core and reward design, but make the niche explicitly **online therapist / therapy-style support**.
-3. Keep the scope narrow instead of expanding into tools, persistent memory, or richer world simulation.
-4. Add a minimal real training pipeline with TRL or Unsloth.
-5. Produce one clear before/after comparison with plots.
-6. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, and safety-aware escalation.
+1. Keep the current environment core and reward design, and make the niche explicitly **online therapist / therapy-style support**.
+2. Skip tool-calling features.
+3. Expand into cross-session memory, longer horizons, and persistent therapeutic workflows.
+4. Reframe the submission as a **Theme 2 + Theme 3.2** story once those extensions exist.
+5. Add a minimal real training pipeline with TRL or Unsloth.
+6. Produce one clear before/after comparison with plots.
+7. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, memory, and safety-aware escalation.
 
 ## 12. Short Verdict
 
-**Round 1 codebase fit to Round 2 theme:** good if framed as Personalized Tasks with an online therapist niche.  
+**Round 1 codebase fit today:** good if framed as Personalized Tasks with an online therapist niche.  
+**Round 1 codebase fit after your planned extensions:** strong Theme 2 + Theme 3.2 hybrid, even without tool calling.  
 **Round 1 codebase fit to Round 2 submission requirements:** incomplete.  
-**Best interpretation:** keep the environment narrow, change the pitch, add training proof, and package it properly.
+**Best interpretation:** keep the therapist niche, skip tool calling, add memory and longer-horizon structure, then add training proof and package it properly.
