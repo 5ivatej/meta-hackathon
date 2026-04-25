@@ -7,9 +7,10 @@ This file is the shortest path to running the environment and training pipeline 
 There are two Compose services:
 
 - `env-server`: runs the OpenEnv-compatible FastAPI environment
-- `trainer`: runs `train_trl.py` using the values from `.env`
+- `reward-trainer`: trains the future-oriented reward model
+- `trainer`: trains the policy model, optionally using the trained reward model
 
-The model name is controlled from `.env`.
+The policy model name and reward model name are both controlled from `.env`.
 
 ## 2. Important Files
 
@@ -24,19 +25,34 @@ Current defaults:
 
 ```env
 PORT=7860
-MODEL_NAME=distilgpt2
-TRAIN_EPISODES_PER_TASK=8
-TRAIN_EPOCHS=1
-TRAIN_BATCH_SIZE=2
-TRAIN_MAX_LENGTH=1024
-TRAIN_OUTPUT_DIR=artifacts/trl_sft
+HF_HOME=/root/.cache/huggingface
+POLICY_MODEL_NAME=distilgpt2
+REWARD_MODEL_NAME=distilroberta-base
+REWARD_TRAIN_EPISODES_PER_TASK=8
+REWARD_TRAIN_EPOCHS=1
+REWARD_TRAIN_BATCH_SIZE=8
+REWARD_TRAIN_MAX_LENGTH=1024
+REWARD_MODEL_OUTPUT_DIR=artifacts/reward_model
+POLICY_TRAIN_EPISODES_PER_TASK=8
+POLICY_TRAIN_EPOCHS=1
+POLICY_TRAIN_BATCH_SIZE=2
+POLICY_TRAIN_MAX_LENGTH=1024
+POLICY_MODEL_OUTPUT_DIR=artifacts/policy_model
 TRAIN_RESULTS_DIR=results
 ```
 
-If you want a different model, change:
+If you want different models, change:
 
 ```env
-MODEL_NAME=your-model-name
+POLICY_MODEL_NAME=your-policy-model
+REWARD_MODEL_NAME=your-reward-model
+```
+
+Good practical starting point:
+
+```env
+POLICY_MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+REWARD_MODEL_NAME=distilroberta-base
 ```
 
 ## 4. Colab Setup
@@ -58,28 +74,48 @@ If Docker is available in your Colab environment, use the commands below directl
 
 This starts the server on port `7860` by default.
 
-## 6. Run Training
+## 6. Train The Reward Model
 
 In a separate cell:
+
+```bash
+!docker compose --profile reward up --build reward-trainer
+```
+
+This runs `train_reward_model.py` and writes a trained reward model under:
+
+```bash
+artifacts/reward_model/
+```
+
+## 7. Train The Policy Model
+
+Then run:
 
 ```bash
 !docker compose --profile train up --build trainer
 ```
 
-This runs:
+This runs `train_trl.py`, which now uses:
+
+- `POLICY_MODEL_NAME` as the trainable policy model
+- `REWARD_MODEL_OUTPUT_DIR` as the learned reward model path
+
+The policy training command is:
 
 ```bash
 python3 train_trl.py \
-  --model-name ${MODEL_NAME} \
-  --episodes-per-task ${TRAIN_EPISODES_PER_TASK} \
-  --epochs ${TRAIN_EPOCHS} \
-  --batch-size ${TRAIN_BATCH_SIZE} \
-  --max-length ${TRAIN_MAX_LENGTH} \
-  --output-dir ${TRAIN_OUTPUT_DIR} \
+  --model-name ${POLICY_MODEL_NAME} \
+  --reward-model-path ${REWARD_MODEL_OUTPUT_DIR} \
+  --episodes-per-task ${POLICY_TRAIN_EPISODES_PER_TASK} \
+  --epochs ${POLICY_TRAIN_EPOCHS} \
+  --batch-size ${POLICY_TRAIN_BATCH_SIZE} \
+  --max-length ${POLICY_TRAIN_MAX_LENGTH} \
+  --output-dir ${POLICY_MODEL_OUTPUT_DIR} \
   --results-dir ${TRAIN_RESULTS_DIR}
 ```
 
-## 7. Expected Outputs
+## 8. Expected Outputs
 
 After training, check:
 
@@ -91,37 +127,44 @@ After training, check:
 Expected files:
 
 - `results/training_metrics.json`
+- `results/reward_model_metrics.json`
+- `results/reward_model_loss.png`
 - `results/loss_curve.png`
 - `results/reward_curve.png`
 - `results/before_after.md`
-- `results/teacher_dataset_preview.json`
-- `artifacts/trl_sft/` with model files
+- `results/reward_dataset_preview.json`
+- `results/policy_dataset_preview.json`
+- `artifacts/reward_model/` with reward model files
+- `artifacts/policy_model/` with policy model files
 
-## 8. Useful Variants
+## 9. Useful Variants
 
 ### Train with more data
 
 Edit `.env`:
 
 ```env
-TRAIN_EPISODES_PER_TASK=16
+REWARD_TRAIN_EPISODES_PER_TASK=16
+POLICY_TRAIN_EPISODES_PER_TASK=16
 ```
 
 ### Train longer
 
 ```env
-TRAIN_EPOCHS=2
+REWARD_TRAIN_EPOCHS=2
+POLICY_TRAIN_EPOCHS=2
 ```
 
 ### Change model
 
 ```env
-MODEL_NAME=distilgpt2
+POLICY_MODEL_NAME=distilgpt2
+REWARD_MODEL_NAME=distilroberta-base
 ```
 
 Replace with your preferred local/Hugging Face model name.
 
-## 9. Common Issues
+## 10. Common Issues
 
 ### `git add .` is slow
 
@@ -136,9 +179,9 @@ That means Colab needs outbound network access for the model pull.
 
 The training script already includes compatibility fallbacks for the common issues we hit locally, but if Colab has a very different preinstalled stack, dependency upgrades may still be needed.
 
-## 10. Minimal Recommended Flow
+## 11. Minimal Recommended Flow
 
-1. Edit `.env` if you want a different `MODEL_NAME`
+1. Edit `.env` if you want different `POLICY_MODEL_NAME` or `REWARD_MODEL_NAME`
 2. Run:
 
 ```bash
@@ -148,26 +191,33 @@ The training script already includes compatibility fallbacks for the common issu
 3. Run:
 
 ```bash
+!docker compose --profile reward up --build reward-trainer
+```
+
+4. Then run:
+
+```bash
 !docker compose --profile train up --build trainer
 ```
 
-4. Inspect:
+5. Inspect:
 
 ```bash
 !cat results/before_after.md
 ```
 
-5. Download or view:
+6. Download or view:
 
 - `results/loss_curve.png`
 - `results/reward_curve.png`
 
-## 11. Practical Note
+## 12. Practical Note
 
 If Docker is not available in the Colab runtime you choose, the fallback is to run the same script directly:
 
 ```bash
-!python3 train_trl.py --model-name distilgpt2 --episodes-per-task 8 --epochs 1 --batch-size 2
+!python3 train_reward_model.py --model-name distilroberta-base --episodes-per-task 8 --epochs 1 --batch-size 8
+!python3 train_trl.py --model-name distilgpt2 --reward-model-path artifacts/reward_model --episodes-per-task 8 --epochs 1 --batch-size 2
 ```
 
 But if Docker Compose works, use the compose path so the environment is reproducible.

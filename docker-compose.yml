@@ -7,6 +7,7 @@ services:
       - .env
     environment:
       PORT: ${PORT:-7860}
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
     command: uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-7860}
     ports:
       - "${PORT:-7860}:${PORT:-7860}"
@@ -20,18 +21,45 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
     command: >
       python3 train_trl.py
-      --model-name ${MODEL_NAME}
-      --episodes-per-task ${TRAIN_EPISODES_PER_TASK}
-      --epochs ${TRAIN_EPOCHS}
-      --batch-size ${TRAIN_BATCH_SIZE}
-      --max-length ${TRAIN_MAX_LENGTH}
-      --output-dir ${TRAIN_OUTPUT_DIR}
+      --model-name ${POLICY_MODEL_NAME}
+      --reward-model-path ${REWARD_MODEL_OUTPUT_DIR}
+      --episodes-per-task ${POLICY_TRAIN_EPISODES_PER_TASK}
+      --epochs ${POLICY_TRAIN_EPOCHS}
+      --batch-size ${POLICY_TRAIN_BATCH_SIZE}
+      --max-length ${POLICY_TRAIN_MAX_LENGTH}
+      --output-dir ${POLICY_MODEL_OUTPUT_DIR}
       --results-dir ${TRAIN_RESULTS_DIR}
     volumes:
       - ./artifacts:/app/artifacts
       - ./results:/app/results
+      - ./.hf-cache:${HF_HOME:-/root/.cache/huggingface}
     profiles:
       - train
 
+  reward-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
+    command: >
+      python3 train_reward_model.py
+      --model-name ${REWARD_MODEL_NAME}
+      --episodes-per-task ${REWARD_TRAIN_EPISODES_PER_TASK}
+      --epochs ${REWARD_TRAIN_EPOCHS}
+      --batch-size ${REWARD_TRAIN_BATCH_SIZE}
+      --max-length ${REWARD_TRAIN_MAX_LENGTH}
+      --output-dir ${REWARD_MODEL_OUTPUT_DIR}
+      --results-dir ${TRAIN_RESULTS_DIR}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./results:/app/results
+      - ./.hf-cache:${HF_HOME:-/root/.cache/huggingface}
+    profiles:
+      - reward

@@ -9,5 +9,5 @@ __pycache__/
 venv/
 artifacts/
 results/
+.hf-cache/
 *.ipynb_checkpoints
-

@@ -26,7 +26,7 @@ dependencies = [
 server = "server.app:main"
 
 [tool.setuptools]
-py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm", "train_trl"]
+py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm", "train_trl", "train_reward_model"]
 
 [tool.setuptools.packages.find]
 include = ["src*", "server*"]
