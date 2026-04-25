@@ -111,6 +111,10 @@ If you add:
 - longer episode structures
 - persistent state across sessions
 - delayed rewards across longer therapeutic trajectories
+- persistent agent memory outside process memory
+- pause/resume durability across worker restarts
+- rolling summaries instead of short sliding-window prompting
+- cost/time budgets and anti-drift guardrails
 
 then the project becomes a real **Theme 2 + Theme 3.2 hybrid** even without tool calling.
 
@@ -194,6 +198,9 @@ If you implement the extensions you described:
 - longer horizons
 - beyond-context persistence
 - longer-running therapeutic workflows
+- persistent agent memory and rolling summaries
+- durable pause/resume execution
+- budget-aware long-running control
 
 then the project shifts from a narrow Theme 3.2 submission to a stronger **Theme 2 + Theme 3.2** submission.
 
@@ -201,8 +208,8 @@ Projected alignment after those changes:
 
 | Theme | Projected alignment | Why |
 | --- | ---: | --- |
-| Long-Horizon Planning | 75/100 | Persistent memory and long-running therapeutic trajectories directly address the theme. |
-| Personalized Tasks | 85/100 | The therapy niche remains strong and becomes more realistic. |
+| Long-Horizon Planning | 82/100 | Persistent memory, rolling summaries, durable pause/resume, and long-running therapeutic trajectories directly address the theme. |
+| Personalized Tasks | 86/100 | The therapy niche remains strong and becomes more realistic over multi-session arcs. |
 
 ### B. Submission Readiness Against Round 2 Judging
 
@@ -270,11 +277,15 @@ The practical move is:
 
 1. Keep the current environment core and reward design, and make the niche explicitly **online therapist / therapy-style support**.
 2. Skip tool-calling features.
-3. Expand into cross-session memory, longer horizons, and persistent therapeutic workflows.
-4. Reframe the submission as a **Theme 2 + Theme 3.2** story once those extensions exist.
-5. Add a minimal real training pipeline with TRL or Unsloth.
-6. Produce one clear before/after comparison with plots.
-7. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, memory, and safety-aware escalation.
+3. Replace short sliding-window prompting with persistent memory plus rolling summaries.
+4. Persist agent memory outside process memory, the same way environment state is persisted.
+5. Add a durable runner that can pause/resume episodes and survive worker restarts.
+6. Expand into cross-session memory, longer horizons, and persistent therapeutic workflows.
+7. Add cost/time budgets and anti-drift guardrails so the long-running setup is actually robust.
+8. Reframe the submission as a **Theme 2 + Theme 3.2** story once those extensions exist.
+9. Add a minimal real training pipeline with TRL or Unsloth.
+10. Produce one clear before/after comparison with plots.
+11. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, memory, durability, and safety-aware escalation.
 
 ## 12. Short Verdict
 
