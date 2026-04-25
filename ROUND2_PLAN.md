@@ -10,12 +10,20 @@ This plan assumes you keep the current environment and reposition it for Round 2
 
 ### Submission Pitch
 
-Build a trainable OpenEnv environment for **sensitive personal support conversations** where the agent must:
+Build a trainable OpenEnv environment for **online therapist-style conversations** where the agent must:
 
 - infer hidden emotional state
 - build trust over time
-- decide when to explore vs. validate vs. plan
+- decide when to explore vs. validate vs. suggest a next step
 - escalate to real-world safety support when needed
+
+Recommended wording for the submission:
+
+- `online therapist-style assistant`
+- `therapy-support agent`
+- `therapy conversation simulator`
+
+Avoid claiming the system is a licensed therapist.
 
 ### Why this is the right move
 
@@ -50,7 +58,7 @@ Files to update:
 Changes:
 
 1. Rewrite the top of `README.md` around the Round 2 problem statement.
-2. Add a section called `Why This Matters for Personalized Agents`.
+2. Add a section called `Why This Matters for Online Therapist Agents`.
 3. Explain the hidden state clearly: `trust`, `distress`, `openness`, `revealed`, `stage`.
 4. Add a section called `What the Agent Learns`.
 5. Add a section called `Before vs After Training`.
@@ -153,9 +161,9 @@ Assets to create:
 
 Suggested narrative:
 
-1. LLMs often sound empathetic without actually helping.
-2. This environment makes emotional support sequential, partially observable, and safety-sensitive.
-3. The reward teaches timing, not just tone.
+1. LLMs often sound empathetic without behaving like a good online therapist.
+2. This environment makes therapist-style support sequential, partially observable, and safety-sensitive.
+3. The reward teaches timing, pacing, disclosure handling, and escalation, not just nice wording.
 4. Training improves completion and safety-aware behavior.
 
 Definition of done:
@@ -248,6 +256,7 @@ Deliverables:
 | OpenEnv compliance turns out incomplete | High | Fix framework usage before polishing presentation. |
 | No visible reward improvement | High | Run a simpler baseline and compare against trained behavior on medium/hard tasks only. |
 | Story feels too similar to Round 1 | Medium | Reframe around personalized-task capability learning, hidden state, and safety-sensitive planning. |
+| Therapist framing sounds overclaimed or unsafe | Medium | Use therapist-style / therapy-support wording and emphasize escalation to real-world help. |
 | The task feels too short-horizon | Medium | Emphasize partial observability, delayed effects, and safety timing rather than claiming long-horizon planning. |
 
 ## 8. What Not To Do
@@ -263,6 +272,7 @@ Avoid these traps:
 ## 9. Submission Checklist
 
 - Theme clearly stated as Personalized Tasks
+- Niche clearly stated as online therapist-style support
 - Problem statement visible near the top of the README
 - HF Space URL linked
 - OpenEnv manifest valid

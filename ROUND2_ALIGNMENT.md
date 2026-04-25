@@ -48,7 +48,7 @@ From the judging notes, the expected implementation shape is:
 
 Current repo summary:
 
-- A deterministic OpenEnv-style environment for emotional support conversations.
+- A deterministic OpenEnv-style environment for online therapist / therapy-style support conversations.
 - A hidden-state seeker simulator with `trust`, `distress`, `openness`, `revealed`, and stage progression.
 - Dense shaped reward plus future-oriented reward lookahead.
 - Three tasks with escalating difficulty.
@@ -77,10 +77,10 @@ This repo aligns best with **World Modeling -> Personalized Tasks**.
 
 Why:
 
-- The task is directly about handling emotionally difficult personal interactions.
+- The task is directly about handling emotionally difficult personal interactions in a therapist-like setting.
 - The environment is partially observable and requires maintaining hidden beliefs about the user.
-- The agent must balance empathy, disclosure, safety escalation, and next-step planning.
-- The task is realistic enough to pitch as a personal-assistant capability rather than a toy benchmark.
+- The agent must balance empathy, disclosure, safety escalation, and therapeutic pacing.
+- The task is realistic enough to pitch as a therapy-support niche rather than a toy benchmark.
 
 ### Weak Secondary Fit: Theme 2 Long-Horizon Planning
 
@@ -111,9 +111,14 @@ But it is still weak for Round 2 Theme 2 because:
 
 If you keep this codebase, the cleanest Round 2 framing is:
 
-**Problem statement:** Train an LLM agent to handle sensitive personal support conversations under partial observability, where success depends on inferring hidden emotional state, building trust, choosing the right moment to explore vs. plan, and escalating to real-world safety support when needed.
+**Problem statement:** Train an LLM agent for online therapist-style conversations under partial observability, where success depends on inferring hidden emotional state, building trust, choosing the right moment to validate vs. explore vs. suggest a next step, and escalating to real-world safety support when needed.
 
 This is much stronger than pitching it as a generic chat benchmark.
+
+One important framing note:
+
+- For the submission, it is better to say **therapist-style assistant**, **online therapy simulator**, or **therapy-support agent** than to imply the model is a licensed therapist.
+- That keeps the story strong while avoiding an unsafe or overclaimed product framing.
 
 ## 5. Alignment Against Round 2 Minimum Requirements
 
@@ -149,7 +154,7 @@ If you pitch this as **Theme 3.2 Personalized Tasks**, the core environment alre
 
 Why it scores reasonably well:
 
-- realistic personal task domain
+- realistic therapy-support niche
 - partial observability
 - nontrivial reward shaping
 - meaningful failure modes
@@ -184,7 +189,7 @@ If judges reviewed the repo in its current state as a Round 2 submission, the sc
 - Hidden state makes the task genuinely partially observable.
 - The reward logic is thoughtful and denser than a binary success metric.
 - The repo already has benchmark scripts and reusable result artifacts.
-- The personalized-task angle is stronger than most generic chatbot demos.
+- The online therapist niche is stronger and more memorable than a generic chatbot demo.
 - The deterministic design is judge-friendly and reproducible.
 
 ## 9. Main Gaps Blocking a Strong Round 2 Submission
@@ -204,13 +209,13 @@ Do **not** throw away the repo.
 The practical move is:
 
 1. Reframe the submission around **Theme 3.2 Personalized Tasks**.
-2. Keep the current environment core and reward design.
+2. Keep the current environment core and reward design, but make the niche explicitly **online therapist / therapy-style support**.
 3. Add a minimal real training pipeline with TRL or Unsloth.
 4. Produce one clear before/after comparison with plots.
-5. Update the README to tell the Round 2 story around personalized support, hidden state, and safety-aware planning.
+5. Update the README to tell the Round 2 story around therapist-style interaction, hidden state, and safety-aware escalation.
 
 ## 11. Short Verdict
 
-**Round 1 codebase fit to Round 2 theme:** good if framed as Personalized Tasks.  
+**Round 1 codebase fit to Round 2 theme:** good if framed as Personalized Tasks with an online therapist niche.  
 **Round 1 codebase fit to Round 2 submission requirements:** incomplete.  
 **Best interpretation:** keep the environment, change the pitch, add training proof, and package it properly.
