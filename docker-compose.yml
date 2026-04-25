@@ -1,0 +1,37 @@
+services:
+  env-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-7860}
+    command: uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-7860}
+    ports:
+      - "${PORT:-7860}:${PORT:-7860}"
+    volumes:
+      - ./results:/app/results
+    restart: unless-stopped
+
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: >
+      python3 train_trl.py
+      --model-name ${MODEL_NAME}
+      --episodes-per-task ${TRAIN_EPISODES_PER_TASK}
+      --epochs ${TRAIN_EPOCHS}
+      --batch-size ${TRAIN_BATCH_SIZE}
+      --max-length ${TRAIN_MAX_LENGTH}
+      --output-dir ${TRAIN_OUTPUT_DIR}
+      --results-dir ${TRAIN_RESULTS_DIR}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./results:/app/results
+    profiles:
+      - train
+
