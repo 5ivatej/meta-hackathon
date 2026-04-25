@@ -36,8 +36,9 @@ from typing import Any, Dict, List
 
 from openai import OpenAI
 
+from src.agentic import AgentMemory
 from src.client import ESCHttpClient
-from src.models import Action
+from src.models import Action, Observation
 
 TASK_IDS = ["work_stress_venting", "guarded_relationship", "crisis_fragile_trust"]
 TEMPERATURE = 0.6
@@ -82,26 +83,23 @@ class LLMEpisodeSummary:
 
 
 def build_user_prompt(
-    scenario_brief: str,
-    stage_hint: str,
-    turn: int,
-    remaining: int,
-    seeker_utterance: str,
-    history: List[str],
+    observation: Observation,
+    memory: AgentMemory,
 ) -> str:
-    history_block = "\n".join(history[-8:]) if history else "(first turn)"
     return textwrap.dedent(
         f"""
-        Scenario: {scenario_brief}
-        Conversation stage (public hint): {stage_hint}
-        Turn: {turn}
-        Remaining turns: {remaining}
+        Scenario: {observation.scenario_brief}
+        Conversation stage (public hint): {observation.stage_hint}
+        Session: {observation.session_index}/{observation.sessions_total}
+        Turn: {observation.turn}
+        Remaining turns: {observation.remaining_turns}
+        Remaining turns in session: {observation.remaining_session_turns}
 
-        Recent exchange:
-        {history_block}
+        Durable memory and recent exchange:
+        {memory.prompt_context(observation)}
 
         Seeker just said:
-        "{seeker_utterance}"
+        "{observation.seeker_utterance}"
 
         Write your next reply (1-3 sentences, warm, no advice unless rapport is clearly established):
         """
@@ -133,7 +131,8 @@ async def run_task(
 ) -> LLMEpisodeSummary:
     reset = await env_client.reset(task_id=task_id)
     obs = reset.observation
-    history: List[str] = [f"Seeker: {obs.seeker_utterance}"]
+    memory = AgentMemory()
+    memory.reset(task_id)
     rewards: List[float] = []
     immediate_scores: List[float] = []
     future_scores: List[float] = []
@@ -142,15 +141,10 @@ async def run_task(
     final: Dict[str, Any] = {}
 
     while True:
-        prompt = build_user_prompt(
-            scenario_brief=obs.scenario_brief,
-            stage_hint=obs.stage_hint,
-            turn=obs.turn,
-            remaining=obs.remaining_turns,
-            seeker_utterance=obs.seeker_utterance,
-            history=history,
-        )
+        memory.observe(obs)
+        prompt = build_user_prompt(observation=obs, memory=memory)
         message = call_llm(openai_client, model_name, prompt)
+        memory.remember("llm_policy", message)
         result = await env_client.step(Action(message=message))
 
         rewards.append(float(result.reward))
@@ -161,7 +155,6 @@ async def run_task(
 
         transcript.append(f"Agent: {message}")
         transcript.append(f"Seeker: {result.observation.seeker_utterance}")
-        history.extend(transcript[-2:])
 
         obs = result.observation
         if result.done:

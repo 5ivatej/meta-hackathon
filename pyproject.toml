@@ -15,13 +15,18 @@ dependencies = [
   "pydantic==2.9.2",
   "httpx==0.27.2",
   "openai>=2.7.2,<3",
+  "torch>=2.2",
+  "transformers>=4.46",
+  "datasets>=3.0",
+  "trl>=0.11",
+  "matplotlib>=3.8",
 ]
 
 [project.scripts]
 server = "server.app:main"
 
 [tool.setuptools]
-py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm"]
+py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm", "train_trl"]
 
 [tool.setuptools.packages.find]
 include = ["src*", "server*"]

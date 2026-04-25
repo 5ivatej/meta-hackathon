@@ -68,5 +68,13 @@ class ESCHttpClient:
         r.raise_for_status()
         return r.json()
 
+    def export_session_token(self) -> Optional[str]:
+        return self._client.cookies.get("esc_session_id")
+
+    def import_session_token(self, token: Optional[str]) -> None:
+        if not token:
+            return
+        self._client.cookies.set("esc_session_id", token)
+
     async def close(self) -> None:
         await self._client.aclose()

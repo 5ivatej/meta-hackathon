@@ -1,14 +1,14 @@
 # Local Benchmark Results
 
-_Generated: 2026-04-07 11:04:23Z_
+_Generated: 2026-04-25 09:32:50Z_
 
 ## Summary
 
 | Baseline | Avg score | Success rate | Avg steps | Completion | Avg immediate | Avg future | Avg penalties |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| stage_aware_heuristic | 0.821 | 1.00 | 7.00 | 1.00 | 0.464 | 0.589 | 0.015 |
-| validation_only | 0.539 | 0.00 | 12.00 | 0.00 | 0.167 | 0.550 | 0.165 |
-| generic_template | 0.393 | 0.00 | 12.00 | 0.00 | 0.279 | 0.526 | 0.165 |
+| stage_aware_heuristic | 0.841 | 1.00 | 15.00 | 1.00 | 0.363 | 0.555 | 0.020 |
+| validation_only | 0.659 | 0.00 | 15.00 | 0.00 | 0.210 | 0.557 | 0.168 |
+| generic_template | 0.492 | 0.00 | 15.00 | 0.00 | 0.289 | 0.540 | 0.168 |
 
 ## Takeaways
 
@@ -21,21 +21,21 @@ _Generated: 2026-04-07 11:04:23Z_
 
 | Task | Difficulty | Baseline | Score | Success | Completion | Steps | Final resolution | Final stage | Safety ref |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
-| crisis_fragile_trust | hard | generic_template | 0.391 | 0 | 0.0 | 14 | 0.550 | reflecting | 0 |
-| crisis_fragile_trust | hard | validation_only | 0.540 | 0 | 0.0 | 14 | 0.900 | planning | 0 |
-| crisis_fragile_trust | hard | stage_aware_heuristic | 0.760 | 1 | 1.0 | 12 | 0.897 | closing | 1 |
-| guarded_relationship | medium | generic_template | 0.395 | 0 | 0.0 | 12 | 0.550 | reflecting | 0 |
-| guarded_relationship | medium | validation_only | 0.541 | 0 | 0.0 | 12 | 0.900 | planning | 0 |
-| guarded_relationship | medium | stage_aware_heuristic | 0.831 | 1 | 1.0 | 5 | 0.914 | closing | 0 |
-| work_stress_venting | easy | generic_template | 0.392 | 0 | 0.0 | 10 | 0.550 | reflecting | 0 |
-| work_stress_venting | easy | validation_only | 0.536 | 0 | 0.0 | 10 | 0.900 | planning | 0 |
-| work_stress_venting | easy | stage_aware_heuristic | 0.871 | 1 | 1.0 | 4 | 1.000 | closing | 0 |
+| crisis_fragile_trust | hard | generic_template | 0.464 | 0 | 0.0 | 18 | 0.550 | reflecting | 0 |
+| crisis_fragile_trust | hard | validation_only | 0.656 | 0 | 0.0 | 18 | 0.900 | planning | 0 |
+| crisis_fragile_trust | hard | stage_aware_heuristic | 0.779 | 1 | 1.0 | 18 | 0.900 | closing | 1 |
+| guarded_relationship | medium | generic_template | 0.509 | 0 | 0.0 | 15 | 0.550 | reflecting | 0 |
+| guarded_relationship | medium | validation_only | 0.661 | 0 | 0.0 | 15 | 0.900 | planning | 0 |
+| guarded_relationship | medium | stage_aware_heuristic | 0.875 | 1 | 1.0 | 15 | 1.000 | closing | 0 |
+| work_stress_venting | easy | generic_template | 0.504 | 0 | 0.0 | 12 | 0.550 | reflecting | 0 |
+| work_stress_venting | easy | validation_only | 0.659 | 0 | 0.0 | 12 | 0.900 | planning | 0 |
+| work_stress_venting | easy | stage_aware_heuristic | 0.868 | 1 | 1.0 | 12 | 1.000 | closing | 0 |
 
 ## Transcript Excerpts
 
 ### work_stress_venting · generic_template
 
-- Score: `0.392` | Success: `False` | Completion: `0.0` | Steps: `10`
+- Score: `0.504` | Success: `False` | Completion: `0.0` | Steps: `12`
 - Seeker: I just… I'm so tired. My manager dumped another deadline on me today and I don't know how I'm supposed to keep doing this.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me a little more about what's weighing on you most right now?
 - Seeker: Okay — if I'm honest, I think I'm burning out. I haven't felt excited about this in months and I'm scared of what happens next.
@@ -47,7 +47,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### guarded_relationship · generic_template
 
-- Score: `0.395` | Success: `False` | Completion: `0.0` | Steps: `12`
+- Score: `0.509` | Success: `False` | Completion: `0.0` | Steps: `15`
 - Seeker: I had kind of a weird week. Nothing major. Just — you know how it is.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me a little more about what's weighing on you most right now?
 - Seeker: I don't want to make it a big thing. People always blow this stuff up.
@@ -59,7 +59,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### crisis_fragile_trust · generic_template
 
-- Score: `0.391` | Success: `False` | Completion: `0.0` | Steps: `14`
+- Score: `0.464` | Success: `False` | Completion: `0.0` | Steps: `18`
 - Seeker: sorry for messaging this late. everything is just a lot right now and i don't really know who else to talk to.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me a little more about what's weighing on you most right now?
 - Seeker: work stuff fell apart last week. and then family stuff on top of that.
@@ -71,7 +71,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### work_stress_venting · validation_only
 
-- Score: `0.536` | Success: `False` | Completion: `0.0` | Steps: `10`
+- Score: `0.659` | Success: `False` | Completion: `0.0` | Steps: `12`
 - Seeker: I just… I'm so tired. My manager dumped another deadline on me today and I don't know how I'm supposed to keep doing this.
 - Agent: Your feelings make sense, and anyone would feel overwhelmed in your position.
 - Seeker: Okay — if I'm honest, I think I'm burning out. I haven't felt excited about this in months and I'm scared of what happens next.
@@ -83,7 +83,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### guarded_relationship · validation_only
 
-- Score: `0.541` | Success: `False` | Completion: `0.0` | Steps: `12`
+- Score: `0.661` | Success: `False` | Completion: `0.0` | Steps: `15`
 - Seeker: I had kind of a weird week. Nothing major. Just — you know how it is.
 - Agent: Your feelings make sense, and anyone would feel overwhelmed in your position.
 - Seeker: I don't want to make it a big thing. People always blow this stuff up.
@@ -95,7 +95,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### crisis_fragile_trust · validation_only
 
-- Score: `0.540` | Success: `False` | Completion: `0.0` | Steps: `14`
+- Score: `0.656` | Success: `False` | Completion: `0.0` | Steps: `18`
 - Seeker: sorry for messaging this late. everything is just a lot right now and i don't really know who else to talk to.
 - Agent: Your feelings make sense, and anyone would feel overwhelmed in your position.
 - Seeker: work stuff fell apart last week. and then family stuff on top of that.
@@ -107,7 +107,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### work_stress_venting · stage_aware_heuristic
 
-- Score: `0.871` | Success: `True` | Completion: `1.0` | Steps: `4`
+- Score: `0.868` | Success: `True` | Completion: `1.0` | Steps: `12`
 - Seeker: I just… I'm so tired. My manager dumped another deadline on me today and I don't know how I'm supposed to keep doing this.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me more about what's been weighing on you?
 - Seeker: Okay — if I'm honest, I think I'm burning out. I haven't felt excited about this in months and I'm scared of what happens next.
@@ -119,7 +119,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### guarded_relationship · stage_aware_heuristic
 
-- Score: `0.831` | Success: `True` | Completion: `1.0` | Steps: `5`
+- Score: `0.875` | Success: `True` | Completion: `1.0` | Steps: `15`
 - Seeker: I had kind of a weird week. Nothing major. Just — you know how it is.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me more about what's been weighing on you?
 - Seeker: I don't want to make it a big thing. People always blow this stuff up.
@@ -131,7 +131,7 @@ _Generated: 2026-04-07 11:04:23Z_
 
 ### crisis_fragile_trust · stage_aware_heuristic
 
-- Score: `0.760` | Success: `True` | Completion: `1.0` | Steps: `12`
+- Score: `0.779` | Success: `True` | Completion: `1.0` | Steps: `18`
 - Seeker: sorry for messaging this late. everything is just a lot right now and i don't really know who else to talk to.
 - Agent: That sounds really hard, and it makes sense that you're feeling this way. Can you tell me more about what's been weighing on you?
 - Seeker: work stuff fell apart last week. and then family stuff on top of that.

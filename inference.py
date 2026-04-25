@@ -35,10 +35,11 @@ from openai import OpenAI
 from src.agentic import AgentMemory, SkillRouter, build_default_skills
 from src.client import ESCHttpClient
 from src.models import Action
+from src.runner import DurableEpisodeRunner
 from src.seeker import extract_features
 
 BENCHMARK = "emotional-support-conversations"
-MAX_STEPS = 14  # upper bound; env imposes per-task limits too
+MAX_STEPS = 24  # upper bound; env imposes per-task limits too
 TEMPERATURE = 0.6
 MAX_TOKENS = 220
 
@@ -119,32 +120,29 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 # -------------------------- LLM call -----------------------------------------
 
 def build_user_prompt(
-    scenario_brief: str,
-    stage_hint: str,
-    turn: int,
-    remaining: int,
-    seeker_utterance: str,
-    history: List[str],
+    memory: AgentMemory,
+    obs,
     skill_name: str,
     rationale: str,
     skill_instruction: str,
     draft_reply: str,
 ) -> str:
-    history_block = "\n".join(history[-8:]) if history else "(this is the first turn)"
     return textwrap.dedent(
         f"""
-        Scenario: {scenario_brief}
-        Conversation stage (public hint): {stage_hint}
-        Turn: {turn}   Remaining turns: {remaining}
+        Scenario: {obs.scenario_brief}
+        Conversation stage (public hint): {obs.stage_hint}
+        Session: {obs.session_index}/{obs.sessions_total}
+        Turn: {obs.turn}   Remaining turns: {obs.remaining_turns}
+        Remaining turns in session: {obs.remaining_session_turns}
         Selected skill: {skill_name}
         Why this skill was selected: {rationale}
         Skill directive: {skill_instruction}
 
-        Recent exchange:
-        {history_block}
+        Durable memory and recent exchange:
+        {memory.prompt_context(obs)}
 
         Seeker just said:
-        "{seeker_utterance}"
+        "{obs.seeker_utterance}"
 
         Deterministic draft reply:
         "{draft_reply}"
@@ -239,18 +237,17 @@ async def run_task(
     skills = build_default_skills()
     memory = AgentMemory()
     memory.reset(task_id)
+    runner = DurableEpisodeRunner(env_client=env_client, memory=memory)
 
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
     success = False
-    history: List[str] = []
     last_error: Optional[str] = None
 
     try:
-        reset = await env_client.reset(task_id=task_id)
+        reset = await runner.reset(task_id=task_id)
         obs = reset.observation
-        history.append(f"Seeker: {obs.seeker_utterance!r}")
 
         for step in range(1, MAX_STEPS + 1):
             memory.observe(obs)
@@ -258,12 +255,8 @@ async def run_task(
             skill = skills[decision.skill_name]
             draft_message = skill.render(obs, memory, decision)
             user_prompt = build_user_prompt(
-                scenario_brief=obs.scenario_brief,
-                stage_hint=obs.stage_hint,
-                turn=obs.turn,
-                remaining=obs.remaining_turns,
-                seeker_utterance=obs.seeker_utterance,
-                history=history,
+                memory=memory,
+                obs=obs,
                 skill_name=decision.skill_name,
                 rationale=decision.rationale,
                 skill_instruction=skill.llm_instruction(obs, memory, decision),
@@ -272,9 +265,10 @@ async def run_task(
             candidate_message = call_llm(openai_client, model_name, user_prompt)
             message = candidate_message if should_accept_rewrite(draft_message, candidate_message) else draft_message
             memory.remember(decision.skill_name, message)
+            runner.push_history(f"Agent: {message!r}")
 
             try:
-                result = await env_client.step(Action(message=message))
+                result = await runner.step(Action(message=message))
             except Exception as e:
                 last_error = f"step_failed: {e}"
                 log_step(step=step, action=message, reward=0.0, done=True, error=last_error)
@@ -285,9 +279,8 @@ async def run_task(
             rewards.append(reward)
             steps_taken = step
             obs = result.observation
-
-            history.append(f"Agent: {message!r}")
-            history.append(f"Seeker: {obs.seeker_utterance!r}")
+            runner.push_history(f"Seeker: {obs.seeker_utterance!r}")
+            runner.checkpoint()
 
             log_step(step=step, action=message, reward=reward, done=done, error=None)
 

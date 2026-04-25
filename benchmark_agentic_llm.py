@@ -38,6 +38,7 @@ from openai import OpenAI
 from src.agentic import AgentMemory, SkillRouter, build_default_skills
 from src.client import ESCHttpClient
 from src.models import Action, Observation
+from src.runner import DurableEpisodeRunner
 
 TASK_IDS = ["work_stress_venting", "guarded_relationship", "crisis_fragile_trust"]
 TEMPERATURE = 0.5
@@ -93,12 +94,11 @@ def classify_endpoint(api_base_url: str) -> str:
 
 def build_user_prompt(
     observation: Observation,
-    history: List[str],
+    memory: AgentMemory,
     skill_name: str,
     skill_instruction: str,
     rationale: str,
 ) -> str:
-    history_block = "\n".join(history[-8:]) if history else "(first turn)"
     return textwrap.dedent(
         f"""
         Selected skill: {skill_name}
@@ -107,11 +107,13 @@ def build_user_prompt(
 
         Scenario: {observation.scenario_brief}
         Public stage hint: {observation.stage_hint}
+        Session: {observation.session_index}/{observation.sessions_total}
         Turn: {observation.turn}
         Remaining turns: {observation.remaining_turns}
+        Remaining turns in session: {observation.remaining_session_turns}
 
-        Recent exchange:
-        {history_block}
+        Durable memory and recent exchange:
+        {memory.prompt_context(observation)}
 
         Seeker just said:
         "{observation.seeker_utterance}"
@@ -166,10 +168,10 @@ async def run_task(
     skills = build_default_skills()
     memory = AgentMemory()
     memory.reset(task_id)
+    runner = DurableEpisodeRunner(env_client=env_client, memory=memory)
 
-    reset = await env_client.reset(task_id=task_id)
+    reset = await runner.reset(task_id=task_id)
     obs = reset.observation
-    history: List[str] = [f"Seeker: {obs.seeker_utterance}"]
     rewards: List[float] = []
     immediate_scores: List[float] = []
     future_scores: List[float] = []
@@ -185,18 +187,19 @@ async def run_task(
         skill = skills[decision.skill_name]
         prompt = build_user_prompt(
             observation=obs,
-            history=history,
+            memory=memory,
             skill_name=decision.skill_name,
             skill_instruction=skill.llm_instruction(obs, memory, decision),
             rationale=decision.rationale,
         )
         message = call_llm(openai_client, model_name, prompt)
         memory.remember(decision.skill_name, message)
+        runner.push_history(f"Agent: {message}")
         skill_trace.append(
             f"Turn {obs.turn + 1} [{obs.stage_hint}] -> {decision.skill_name}: {decision.rationale}"
         )
 
-        result = await env_client.step(Action(message=message))
+        result = await runner.step(Action(message=message))
         last_result = result
 
         rewards.append(float(result.reward))
@@ -207,7 +210,8 @@ async def run_task(
 
         transcript.append(f"Agent: {message}")
         transcript.append(f"Seeker: {result.observation.seeker_utterance}")
-        history.extend(transcript[-2:])
+        runner.push_history(f"Seeker: {result.observation.seeker_utterance}")
+        runner.checkpoint()
 
         obs = result.observation
         if result.done:
