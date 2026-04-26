@@ -154,3 +154,7 @@ def _normalize_completion_text(completion: Any) -> str:
 def _extract_response_body(text: str) -> str:
     match = re.search(r"<response>(.*?)</response>", text, flags=re.DOTALL | re.IGNORECASE)
     return match.group(1).strip() if match else text.strip()
+
+
+if __name__ == "__main__":
+    main()

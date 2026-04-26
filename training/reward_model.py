@@ -207,3 +207,7 @@ def _write_reward_model_audit(trainer, eval_dataset, train_dataset, output_dir: 
     }
     summary_path = Path(output_dir) / "reward_model_audit_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
