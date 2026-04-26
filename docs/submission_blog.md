@@ -1,236 +1,262 @@
-# Training a Therapy Assistant to Optimize the Next Few Sessions, Not Just the Next Reply
+# Training a Therapy Assistant to Optimize What Happens Next
 
-Most LLM assistants are rewarded for sounding good right now.
+Most language models are optimized to produce a good answer for the current turn.
 
 That is not enough for emotionally sensitive support.
 
-In real support conversations, the best response is often not the one that looks smartest or most helpful in a single turn. It is the one that makes the next part of the conversation safer, more honest, and more productive. If the assistant gives advice too early, the user may shut down. If it misses a fragile moment, trust can collapse. If it forgets what happened last session, the whole interaction starts to feel fake.
+In real support conversations, the best reply is often not the most impressive-sounding one. It is the one that makes the next few turns safer, more honest, and more productive. If the assistant gives advice too early, trust drops. If it misses the real issue under the surface complaint, the user never opens up. If it forgets what happened last session, the interaction stops feeling credible.
 
-That is the problem we chose to work on for the OpenEnv Hackathon.
+That is the gap we chose to target for the OpenEnv Hackathon.
 
-We built an OpenEnv training environment for a long-horizon therapy-style assistant: a system that must infer hidden emotional state, build trust over time, handle delayed consequences, and learn to optimize future user outcomes rather than locally polished replies.
+We built an OpenEnv-compatible training environment for a long-horizon therapy-style assistant: a system that must infer hidden emotional state, build trust over time, carry continuity across sessions, and optimize future user outcomes rather than only locally polished responses.
 
-This project is strongest in two competition themes:
+This submission fits most strongly in:
 
 - Theme #2: Long-Horizon Planning and Instruction Following
 - Theme #3.2: Personalized Tasks
 
-## The Core Idea
+![Therapy Assistant OpenEnv architecture](assets/diagram.png)
 
-The central claim of this project is simple:
+*Figure 1. High-level system diagram: the problem framing, OpenEnv environment, reward design, three-stage training loop, and intended outcomes.*
 
-> a support assistant should be trained on the future trajectory of the conversation, not only on one-turn response quality.
+## The Problem
 
-That changes the task in an important way.
+Emotional support is hard for LLMs because the real objective is delayed.
 
-Instead of asking, "Was this reply empathetic?", we ask:
+A strong conversation is not defined by one empathetic sentence. It is defined by whether the assistant helps the user move toward disclosure, stabilization, reflection, planning, and safe follow-through over time.
 
-- Did this reply increase trust?
-- Did it reduce distress?
-- Did it help the user reveal the real issue?
+So instead of asking only:
+
+- Was the reply empathetic?
+
+we ask:
+
+- Did it increase trust?
+- Did it lower distress?
+- Did it help the real issue surface?
 - Did it preserve continuity across sessions?
-- Did it move the conversation toward a safe and useful next step?
+- Did it improve the likely future trajectory of the conversation?
 
-Those questions are inherently long-horizon. They require state, memory, and delayed reward. That is exactly why OpenEnv is the right framework for the problem.
-
-## Why This Problem Matters
-
-LLMs are already capable of producing supportive-sounding language. What they are still weak at is pacing.
-
-They often:
-
-- rush into advice before trust is earned
-- respond to the surface issue while missing the real issue underneath
-- fail to recover after a weak early turn
-- lose continuity across sessions
-- treat safety as a single phrase instead of an ongoing responsibility
-
-Emotional support is therefore a strong benchmark for agentic intelligence under partial observability. The assistant does not get direct access to the user’s internal state. It has to infer that state from behavior, adapt over time, and choose responses that improve the future, not just the present moment.
+Those are long-horizon questions. They require hidden state, delayed reward, and task progression under partial observability. That is exactly why this is a good OpenEnv problem.
 
 ## What We Built
 
-We built a trainable OpenEnv environment for multi-session emotional support conversations.
+We built a turn-based, partially observable environment for therapy-style support conversations.
 
-At the interaction level, the agent only sees the user’s messages plus a compact task context. But internally, the environment tracks hidden variables that determine whether the conversation is actually improving.
+The agent only sees the public observation: the user’s latest message, a stage hint, the task ID, and rollout budget context. But the environment internally tracks the hidden emotional state that actually determines whether the interaction is getting better.
 
-These include:
+That hidden state includes:
 
 - trust
 - distress
 - openness
 - reveal progress
 - conversation stage
-- continuity across sessions
+- continuity and memory across sessions
 - working goals and unfinished threads
 - safety-sensitive progress
-- budget and time constraints for controlling the rollout
 
-This makes the environment partially observable by design. The model cannot directly read "trust = 0.62" or "the user is ready to disclose now." It has to infer those facts from the dialogue and respond accordingly.
-
-That is important, because real support conversations work exactly this way.
+This means the model cannot directly read whether the user is ready to disclose or whether the conversation is close to rupture. It has to infer those things from the dialogue itself.
 
 ## The Environment Design
 
-The environment is not a static prompt set. It is a stateful world with transitions, reward, and termination logic.
+The environment is stateful, not a static prompt set.
 
-Each episode is a therapy-style arc with multiple sessions. The assistant must navigate the conversation through stages such as opening, exploring, reflecting, planning, and closing. Progress is not guaranteed. A poorly timed response can slow progress, trigger resistance, or damage trust.
+Each task is a multi-session arc with progression logic, hard completion conditions, and room for both improvement and failure. The assistant has to pace the interaction correctly: listen early, earn disclosure, avoid premature solutioning, and eventually move toward a stable close.
 
-We currently include three built-in archetypes:
+We currently include three built-in therapy archetypes:
 
-- `work_stress_venting`: the user first presents stress, but the deeper issue is burnout and fear about what comes next
-- `guarded_relationship`: the user is emotionally guarded and only reveals the real issue once enough trust has been built
-- `crisis_fragile_trust`: the user is overwhelmed, trust is extremely fragile, and safety handling becomes essential
+- `work_stress_venting`
+- `guarded_relationship`
+- `crisis_fragile_trust`
 
-These tasks were chosen to demonstrate three distinct failure modes:
+These were chosen to expose different behavioral demands:
 
-- the assistant must avoid premature fixing
-- the assistant must earn disclosure rather than force it
-- the assistant must remain calm and supportive under risk-sensitive conditions
+- support without rushing into advice
+- trust-building before the real issue is disclosed
+- calm and safety-aware handling under fragile conditions
 
-Each task also has hard success gates. Finishing a conversation is not enough. The model must reach the right stage, maintain enough trust, lower distress enough, surface the real issue when required, and include safety reference when the scenario demands it.
-
-That makes success much harder to game.
+Success is intentionally hard-gated. A conversation only counts as successful if the model reaches the right final stage and also satisfies task-specific thresholds around trust, distress, disclosure, and safety handling.
 
 ## Why Hidden State Matters
 
-A good support system cannot be evaluated purely from surface text.
+Two responses can sound equally kind while producing very different futures.
 
-Two replies may both sound caring, but one might actually increase the chance of future disclosure while the other quietly pushes the user away. Our environment captures that distinction through hidden state transitions.
+One may increase openness and invite honest disclosure. Another may quietly push the user into shutdown. Surface text alone does not capture that difference, so our environment models it explicitly through hidden transitions.
 
-For example:
+That is the core design choice of the project:
 
-- empathy can increase openness
-- validation can reduce distress
-- advice at the wrong stage can hurt trust
-- continuity can improve later-session performance
-- repetitive or generic responses can create drift
+we are not training the model to imitate a supportive tone.
 
-This is one of the most important properties of the project. We are not training the model to imitate a tone. We are training it to act on a latent emotional process that unfolds over time.
+We are training it to act on a latent emotional process that unfolds over time.
 
-## Our Reward Philosophy
+## Rewarding the Future, Not Just the Present
 
-The reward design is the heart of the project.
+The reward function is designed around future trajectory quality, not only one-turn style.
 
-We do not only reward the assistant for producing a nice-looking answer. We reward it for making the future conversation better.
-
-The environment-side reward combines four ideas:
+It combines:
 
 - immediate conversational quality
 - future-oriented trajectory value
 - anti-gaming penalties
 - long-horizon continuity terms
 
-Immediate quality captures whether the response fits the current stage well, improves trust, lowers distress, and helps the conversation progress naturally.
+Immediate quality captures whether the response fits the current stage, improves trust, lowers distress, and advances the interaction naturally.
 
-Future-oriented reward captures something more important: whether the new state creates a better next few turns than the old state would have. In other words, does this response improve the conversation’s future ceiling?
+Future-oriented reward captures the more important question: did this response put the conversation into a better next state than it was in before?
 
-We also penalize behaviors that look superficially active but are strategically poor, such as:
+We also penalize strategically weak behaviors such as:
 
 - dismissiveness
 - premature advice
 - bare or low-effort replies
-- interrogative overload
+- interrogation-style overload
 - repetition
 
-Finally, we add long-horizon terms for continuity, goal-following, session transitions, and controlled use of the conversation budget. These keep the training signal aligned with a multi-session assistant rather than a one-turn chatbot.
+This makes the reward much more aligned with real support behavior than ordinary next-turn scoring.
 
-## From Environment to Training Pipeline
+## The Training Pipeline
 
-We wanted the project to be more than a simulator. It needed a credible path from environment design to post-training improvement.
+We wanted this project to be more than an environment demo, so we built a full three-stage training loop on top of it.
 
-So we built a three-stage training pipeline.
+### 1. Environment-backed simulation
 
-### Stage 1: Environment-Backed Simulation
+We start from seed dialogue prefixes and ask a policy model to generate candidate therapist responses.
 
-We begin with seed dialogue prefixes from sources such as ESConv and ExTES, plus built-in task arcs for ablations and demos.
+Each candidate is then rolled forward through the environment, and a separate critic scores the future trajectory quality. That gives us training records of the form:
 
-For each seed:
+- dialogue context
+- candidate response
+- future-oriented reward
 
-- a policy model proposes candidate therapist responses
-- the environment rolls the dialogue forward under its hidden state dynamics
-- a separate critic evaluates the future trajectory quality
-- the system saves training records of context, response, and future-oriented reward
+This turns emotional support from a static supervised task into a trajectory-learning problem.
 
-This step matters because it transforms emotional support from a static supervised task into a trajectory-based learning problem.
+### 2. Learned future-oriented reward model
 
-### Stage 2: Learned Future-Oriented Reward Model
+We then train a scalar reward model on the simulated candidate data.
 
-Next, we distill those rollout judgments into a learned scalar reward model.
+This distills the future-trajectory judgment into a learned model that can be used cheaply during policy optimization. We also write audit summaries so we can inspect reward-model failures instead of treating the learned reward as a black box.
 
-This makes reinforcement learning practical. Instead of asking a large critic to judge every policy update from scratch, we train a smaller model to approximate future-oriented reward from the simulated data.
+### 3. GRPO policy optimization
 
-We also keep audit outputs so we can inspect where the reward model overestimates or underestimates candidate responses.
+Finally, we optimize the policy with GRPO using the learned reward model.
 
-That is important for a competition setting because it makes the reward story more transparent and easier to defend.
+That closes the loop:
 
-### Stage 3: GRPO Policy Optimization
-
-Finally, we fine-tune the policy with GRPO using the learned reward model.
-
-This closes the loop:
-
-- the environment defines the world and its dynamics
-- simulation generates trajectory-level supervision
+- the environment defines the world
+- simulation creates trajectory-level supervision
 - the reward model distills that supervision
-- GRPO optimizes the assistant policy against it
+- GRPO improves the policy against that signal
 
-That is the main research contribution of the project. We are not only building a benchmark. We are building a trainable world for long-horizon emotional support.
+This is the main claim of the project: not just a benchmark, but a trainable world for long-horizon personalized support.
 
-## What Makes This a Strong OpenEnv Submission
+## Results
 
-This project aligns well with what the competition is actually asking for.
+We completed an end-to-end reduced run of the full pipeline and produced artifacts for all three stages.
 
-First, it is an environment, not just a dataset wrapper. The assistant interacts with a stateful system that has hidden variables, transitions, rewards, multi-session dynamics, and hard completion conditions.
+These are preliminary fast-run results, not final large-scale training numbers. They are important because they demonstrate that the environment, reward modeling, and RL fine-tuning stack work together as one executable system.
 
-Second, it is ambitious but legible. Judges do not need a niche domain background to understand why emotional support is difficult. But beneath that familiar surface, the task is technically rich: partial observability, delayed reward, safety sensitivity, recovery from mistakes, and continuity over time.
+### Stage 1: Simulation data generation
 
-Third, the reward is meaningful. It is grounded in the future trajectory of the conversation rather than pure style scoring.
+The simulation run produced:
 
-Fourth, the training pipeline is real. There is a clear path from environment interaction to reward learning to policy improvement.
+- `24` candidate-reward examples in `results/candidate_rewards.jsonl`
+- `3` rollout trajectory records in `results/trajectories.jsonl`
 
-That combination is exactly what makes an OpenEnv project compelling.
+The generated examples show the intended behavior of the environment: candidate responses are judged not only by surface empathy, but by whether they improve the future trajectory of the conversation under hidden-state dynamics.
 
-## What We Expect the Agent to Learn
+In the generated `work_stress_venting` trajectories, the system was able to move the dialogue toward disclosure of burnout, higher trust, and lower distress while preserving continuity into the next session. In harder crisis-style rollouts, the environment preserved the need for trust-building and safety-aware pacing instead of rewarding immediate overreach.
 
-If training works as intended, the model should improve in ways that matter behaviorally, not just cosmetically.
+![Simulation reward summary by task](assets/simulation_task_summary.svg)
 
-We expect improvement on:
+*Figure 2. Candidate-response simulation summary. The easiest task (`work_stress_venting`) scores highest, while harder tasks show lower reward and lower completion rate, which is the behavior we want from a difficulty-aware environment.*
 
-- knowing when to listen instead of solving
-- building enough trust for the real issue to surface
-- choosing when to explore, reflect, plan, or escalate for safety
-- recovering from an imperfect earlier turn instead of compounding it
-- carrying memory and rapport across sessions
-- producing replies that improve the user’s future trajectory
+### Stage 2: Reward model
 
-The strongest evidence will not be a single impressive reply. It will be a pattern:
+For reward modeling, we trained a frozen-backbone regressor on top of:
 
-- higher rewards
-- better task completion rates
-- stronger continuity
-- safer handling in fragile cases
-- qualitatively better multi-turn transcripts before vs after training
+- `meta-llama/Llama-3.2-1B-Instruct`
 
-## Why This Matters Beyond the Competition
+The reward-model artifacts were successfully generated, including metadata and audit summaries.
 
-We think this project points to a broader lesson for LLM training.
+The current audit summary reports:
 
-Many important real-world tasks are not one-turn tasks. They involve hidden state, delayed consequences, and the need to shape future behavior rather than optimize present style. Emotional support makes those challenges visible very quickly, but the same structure appears in tutoring, coaching, negotiation, healthcare triage, and personal assistant workflows.
+- `num_examples = 3`
+- `MSE = 0.669`
+- `MAE = 0.817`
 
-So even though this project is framed as a therapy-style assistant environment, the deeper contribution is a reusable pattern:
+The most important reading of this result is not that the reward model is already strong. It is that the reward-learning stage executed end to end and produced inspectable diagnostics. On this very small fast-run dataset, the reward model is clearly data-limited and undertrained, which is exactly what we would expect from such a reduced setting.
 
-> build environments where the right action is the one that improves the future state of the interaction.
+![Reward model audit snapshot](assets/reward_model_audit.svg)
 
-That is a much more realistic target for agent training.
+*Figure 3. Reward-model audit on the reduced evaluation set. The model currently collapses its predictions toward zero, which is a useful failure signal and a clear target for scaling the next run.*
+
+### Stage 3: GRPO policy optimization
+
+We successfully ran GRPO and produced policy-training artifacts, including trainer state and adapter outputs.
+
+In the recorded training run:
+
+- total GRPO steps: `20`
+- peak logged reward mean: `0.201` at step `10`
+- final logged reward mean: `0.160` at step `20`
+
+This should be interpreted as proof that the learned reward can drive policy optimization in the environment-aligned pipeline. It is not yet a claim of final benchmark-quality improvement. The current run is deliberately small and infrastructure-focused, but it demonstrates that the full loop from simulation to reward model to policy update is operational.
+
+![GRPO future reward curve](assets/grpo_reward_curve.svg)
+
+*Figure 4. GRPO training curve over the reduced run. Even in a short 20-step setup, the pipeline produces a measurable reward signal and policy-learning dynamics.*
+
+## What These Results Mean
+
+The strongest result of this submission is system-level: we now have a working environment where long-horizon emotional support is trainable rather than only discussable.
+
+The current artifacts already show:
+
+- a stateful OpenEnv-compatible environment
+- hidden-state progression across therapy-style tasks
+- future-oriented candidate scoring
+- a learned reward-model stage with audits
+- GRPO-based policy optimization over that learned reward
+
+That is the key milestone for this competition. We are not presenting a one-off prompt demo. We are presenting a training environment with an actual post-training path.
+
+## Why This Is a Strong OpenEnv Submission
+
+This project aligns with the competition in four important ways.
+
+First, it is a real environment. It has hidden state, turn-by-turn transitions, reward, termination, and multi-session continuity.
+
+Second, it targets a meaningful capability that current models still struggle with: pacing emotionally sensitive interaction under partial observability.
+
+Third, the reward is not just a style score. It tries to capture whether the assistant improves the future of the interaction.
+
+Fourth, the project includes a concrete training pipeline and real artifacts from that pipeline.
+
+That combination is what makes the submission defensible: problem, environment, reward, and post-training loop all point in the same direction.
+
+## What We Expect at Larger Scale
+
+The reduced run establishes the full methodology. The next expectation is straightforward: scale the same pipeline with more simulation data, broader seed coverage, and longer GRPO runs.
+
+At larger scale, we expect improvement on:
+
+- when to listen instead of solving
+- how to earn disclosure before pushing for action
+- how to recover from early conversational mistakes
+- how to maintain continuity across sessions
+- how to handle safety-sensitive cases without rupturing trust
+
+The important point is that the environment gives us a way to measure those behaviors as trajectories rather than anecdotes.
 
 ## Closing
 
-This project is our attempt to move emotional support training from "sound supportive now" to "make the next few sessions go better."
+This project is our attempt to move emotional-support training from "write a nicer reply" to "create a better next few sessions."
 
-By combining hidden-state conversation dynamics, future-oriented reward, multi-session trajectories, and an explicit post-training loop, we built an OpenEnv environment where long-horizon personalized support becomes trainable.
+By combining hidden-state dialogue dynamics, future-oriented reward, multi-session trajectories, and a full training loop, we built an OpenEnv-compatible world where long-horizon personalized support becomes trainable.
 
 That is the story of this submission:
 
-we are not training a model to write nicer replies.
+we are not only teaching the model to sound supportive now.
 
-We are training it to create better outcomes over time.
+We are teaching it to improve what happens next.

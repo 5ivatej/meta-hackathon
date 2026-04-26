@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img">
+<rect x="0" y="0" width="960" height="540" fill="#fcfbf8"/>
+<text x="40" y="42" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" fill="#1f2937" text-anchor="start">GRPO Future-Reward Curve</text>
+<text x="40" y="66" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="400" fill="#6b7280" text-anchor="start">Logged mean reward with one-standard-deviation band across the 20-step reduced run.</text>
+<rect x="70" y="56" width="870" height="414" rx="18" fill="#ffffff" stroke="#ece7df"/>
+<line x1="90" y1="450.0" x2="920" y2="450.0" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="455.0" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.0</text>
+<line x1="90" y1="380.188679245283" x2="920" y2="380.188679245283" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="385.188679245283" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.1</text>
+<line x1="90" y1="310.37735849056605" x2="920" y2="310.37735849056605" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="315.37735849056605" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.2</text>
+<line x1="90" y1="240.56603773584905" x2="920" y2="240.56603773584905" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="245.56603773584905" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.3</text>
+<line x1="90" y1="170.75471698113205" x2="920" y2="170.75471698113205" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="175.75471698113205" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.4</text>
+<line x1="90" y1="100.94339622641513" x2="920" y2="100.94339622641513" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="76" y="105.94339622641513" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="end">0.5</text>
+<line x1="90.0" y1="80" x2="90.0" y2="450" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="90.0" y="476" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="middle">5</text>
+<line x1="366.66666666666663" y1="80" x2="366.66666666666663" y2="450" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="366.66666666666663" y="476" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="middle">10</text>
+<line x1="643.3333333333333" y1="80" x2="643.3333333333333" y2="450" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="643.3333333333333" y="476" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="middle">15</text>
+<line x1="920.0" y1="80" x2="920.0" y2="450" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="920.0" y="476" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#6b7280" text-anchor="middle">20</text>
+<text x="505.0" y="516" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="600" fill="#6b7280" text-anchor="middle">GRPO step</text>
+<text x="28" y="265.0" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="600" fill="#6b7280" text-anchor="start">Reward</text>
+<polygon points="90.00,125.73 366.67,117.69 643.33,393.81 920.00,172.94 920.00,450.00 643.33,450.00 366.67,450.00 90.00,450.00" fill="#1f6f78" opacity="0.15"/>
+<polyline points="90.00,322.24 366.67,309.46 643.33,430.46 920.00,338.13" fill="none" stroke="#1f6f78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="90.00" cy="322.24" r="5" fill="#1f6f78"/>
+<circle cx="366.67" cy="309.46" r="5" fill="#1f6f78"/>
+<circle cx="643.33" cy="430.46" r="5" fill="#1f6f78"/>
+<circle cx="920.00" cy="338.13" r="5" fill="#1f6f78"/>
+<line x1="366.66666666666663" y1="301.4567364116885" x2="462.66666666666663" y2="251.4567364116885" stroke="#d97706" stroke-width="2"/>
+<text x="470.66666666666663" y="247.4567364116885" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" fill="#d97706" text-anchor="start">Peak: 0.201</text>
+<text x="470.66666666666663" y="267.4567364116885" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">step 10</text>
+<rect x="700" y="98" width="200" height="92" rx="14" fill="#f8fafc" stroke="#e5e7eb"/>
+<line x1="716" y1="122" x2="752" y2="122" stroke="#1f6f78" stroke-width="4"/>
+<text x="762" y="127" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="600" fill="#1f2937" text-anchor="start">mean reward</text>
+<rect x="716" y="140" width="36" height="12" fill="#1f6f78" opacity="0.15"/>
+<text x="762" y="151" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="600" fill="#1f2937" text-anchor="start">± 1 std</text>
+<text x="716" y="174" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">final loss: -0.0239</text>
+</svg>
