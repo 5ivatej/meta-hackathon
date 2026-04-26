@@ -1,0 +1,5 @@
+{
+  "source_jsonl": "/content/meta-hackathon/artifacts/sim_data_fast/candidate_rewards.jsonl",
+  "model_name": "meta-llama/Llama-3.2-1B-Instruct",
+  "freeze_backbone": true
+}
