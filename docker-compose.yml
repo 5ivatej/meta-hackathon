@@ -1,0 +1,83 @@
+services:
+  env-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-7860}
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
+    command: uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-7860}
+    ports:
+      - "${PORT:-7860}:${PORT:-7860}"
+    volumes:
+      - ./artifacts:/app/artifacts
+    restart: unless-stopped
+
+  simulator-data:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
+    command: >
+      python3 -m training.simulate_dialogues
+      --output-dir ${SIM_OUTPUT_DIR:-artifacts/sim_data}
+      --examples-source ${EXAMPLES_SOURCE:-esconv_hf}
+      --dataset-name ${DATASET_NAME:-thu-coai/esconv}
+      --dataset-split ${DATASET_SPLIT:-train}
+      --max-seed-examples ${MAX_SEED_EXAMPLES:-200}
+      --policy-model ${POLICY_MODEL_NAME:-Qwen/Qwen2.5-3B-Instruct}
+      --user-model ${USER_MODEL_NAME:-Qwen/Qwen2.5-3B-Instruct}
+      --critic-model ${CRITIC_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}
+      --episodes-per-seed ${SIM_EPISODES_PER_SEED:-2}
+      --num-candidates ${SIM_NUM_CANDIDATES:-4}
+      --rollout-steps ${SIM_ROLLOUT_STEPS:-6}
+      --max-turns ${SIM_MAX_TURNS:-16}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./.hf-cache:${HF_HOME:-/root/.cache/huggingface}
+    profiles:
+      - simulate
+
+  reward-model-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
+    command: >
+      python3 -m training.reward_model
+      --input-jsonl ${SIM_OUTPUT_DIR:-artifacts/sim_data}/candidate_rewards.jsonl
+      --model-name ${REWARD_MODEL_NAME:-Qwen/Qwen2.5-0.5B-Instruct}
+      --output-dir ${REWARD_MODEL_OUTPUT_DIR:-artifacts/reward_model}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./.hf-cache:${HF_HOME:-/root/.cache/huggingface}
+    profiles:
+      - reward
+
+  grpo-trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      HF_HOME: ${HF_HOME:-/root/.cache/huggingface}
+    command: >
+      accelerate launch -m training.grpo_policy
+      --prompt-jsonl ${SIM_OUTPUT_DIR:-artifacts/sim_data}/candidate_rewards.jsonl
+      --model-name ${GRPO_MODEL_NAME:-Qwen/Qwen2.5-3B-Instruct}
+      --reward-model-dir ${REWARD_MODEL_OUTPUT_DIR:-artifacts/reward_model}
+      --output-dir ${GRPO_OUTPUT_DIR:-artifacts/grpo_policy}
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./.hf-cache:${HF_HOME:-/root/.cache/huggingface}
+    profiles:
+      - grpo

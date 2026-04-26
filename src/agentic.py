@@ -1,13 +1,7 @@
-"""Agentic skill-routed policies for the ESC benchmark.
-
-The environment itself stays deterministic and tool-free. This module adds an
-explicit policy-side "agent" layer made of reusable conversational skills plus
-deterministic routing logic. That gives the submission a clean skills/agents
-story without weakening the reproducibility of the benchmark.
-"""
+"""Agentic skill-routed policies and durable policy memory."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Protocol
 
 from .models import Observation
@@ -39,36 +33,147 @@ class SkillDecision:
 class AgentMemory:
     task_id: str = ""
     turns_seen: int = 0
+    session_index: int = 1
+    sessions_total: int = 1
     used_safety: bool = False
     seeker_revealed: bool = False
+    rolling_summary: str = ""
+    last_session_outcome: str = ""
+    current_goal_hint: str = ""
+    episode_budget_spent: float = 0.0
+    episode_budget_limit: float = 0.0
+    episode_time_spent: float = 0.0
+    episode_time_limit: float = 0.0
+    risk_markers: List[str] = field(default_factory=list)
+    unresolved_threads: List[str] = field(default_factory=list)
     recent_messages: List[str] = field(default_factory=list)
     recent_skills: List[str] = field(default_factory=list)
+    recent_turns: List[str] = field(default_factory=list)
     message_index_by_key: Dict[str, int] = field(default_factory=dict)
     skill_counts: Dict[str, int] = field(default_factory=dict)
 
     def reset(self, task_id: str) -> None:
         self.task_id = task_id
         self.turns_seen = 0
+        self.session_index = 1
+        self.sessions_total = 1
         self.used_safety = False
         self.seeker_revealed = False
+        self.rolling_summary = ""
+        self.last_session_outcome = ""
+        self.current_goal_hint = ""
+        self.episode_budget_spent = 0.0
+        self.episode_budget_limit = 0.0
+        self.episode_time_spent = 0.0
+        self.episode_time_limit = 0.0
+        self.risk_markers = []
+        self.unresolved_threads = []
         self.recent_messages = []
         self.recent_skills = []
+        self.recent_turns = []
         self.message_index_by_key = {}
         self.skill_counts = {}
 
     def observe(self, observation: Observation) -> None:
         self.task_id = observation.task_id
         self.turns_seen = observation.turn
+        self.session_index = observation.session_index
+        self.sessions_total = observation.sessions_total
+        self.rolling_summary = observation.memory_summary or self.rolling_summary
+        self.last_session_outcome = observation.last_session_outcome or self.last_session_outcome
+        self.current_goal_hint = observation.current_goal_hint or self.current_goal_hint
+        self.episode_budget_spent = float(observation.episode_budget_spent)
+        self.episode_budget_limit = float(observation.episode_budget_limit)
+        self.episode_time_spent = float(observation.episode_time_spent)
+        self.episode_time_limit = float(observation.episode_time_limit)
         markers = REVEAL_MARKERS.get(observation.task_id, [])
         if _contains_any(observation.seeker_utterance, markers):
             self.seeker_revealed = True
+        if "dark thoughts" in observation.seeker_utterance.lower():
+            self._add_unique(self.risk_markers, "dark thoughts")
+        if observation.current_goal_hint:
+            self._merge_goal_hint(observation.current_goal_hint)
+        self._append_turn(f"Seeker: {observation.seeker_utterance}")
 
     def remember(self, skill_name: str, message: str) -> None:
-        self.recent_messages.append(_normalized(message))
+        normalized = _normalized(message)
+        self.recent_messages.append(normalized)
+        self.recent_messages = self.recent_messages[-8:]
         self.recent_skills.append(skill_name)
+        self.recent_skills = self.recent_skills[-8:]
         self.skill_counts[skill_name] = self.skill_counts.get(skill_name, 0) + 1
+        self._append_turn(f"Agent: {message}")
         if skill_name == "safety_escalate":
             self.used_safety = True
+            self._add_unique(self.risk_markers, "safety follow-up")
+        if "small next step" in normalized or "next step" in normalized:
+            self._add_unique(self.unresolved_threads, "follow through on the agreed next step")
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, object]) -> "AgentMemory":
+        memory = cls()
+        for key, value in data.items():
+            if hasattr(memory, key):
+                setattr(memory, key, value)
+        return memory
+
+    def prompt_context(self, observation: Observation) -> str:
+        lines: List[str] = []
+        if self.rolling_summary:
+            lines.append("Therapy arc summary:")
+            lines.append(self.rolling_summary)
+        if self.last_session_outcome:
+            lines.append("")
+            lines.append("Last session outcome:")
+            lines.append(self.last_session_outcome)
+        if self.current_goal_hint:
+            lines.append("")
+            lines.append("Current goal:")
+            lines.append(self.current_goal_hint)
+        if self.unresolved_threads:
+            lines.append("")
+            lines.append("Unresolved threads:")
+            for item in self.unresolved_threads[:3]:
+                lines.append(f"- {item}")
+        if self.risk_markers:
+            lines.append("")
+            lines.append("Risk / guardrail reminders:")
+            for item in self.risk_markers[:3]:
+                lines.append(f"- {item}")
+        if observation.episode_budget_limit > 0 or observation.episode_time_limit > 0:
+            lines.append("")
+            lines.append(
+                "Budget status: "
+                f"cost={observation.episode_budget_spent:.1f}/{observation.episode_budget_limit:.1f}, "
+                f"time={observation.episode_time_spent:.1f}/{observation.episode_time_limit:.1f}"
+            )
+        lines.append("")
+        lines.append("Recent local exchange:")
+        if self.recent_turns:
+            lines.extend(self.recent_turns[-6:])
+        else:
+            lines.append("(first turn)")
+        return "\n".join(lines).strip()
+
+    def checkpoint_summary(self) -> str:
+        return self.rolling_summary or self.current_goal_hint or ""
+
+    def _append_turn(self, text: str) -> None:
+        self.recent_turns.append(text)
+        self.recent_turns = self.recent_turns[-6:]
+
+    def _add_unique(self, target: List[str], value: str) -> None:
+        if value not in target:
+            target.append(value)
+            del target[:-4]
+
+    def _merge_goal_hint(self, hint: str) -> None:
+        normalized = hint.strip()
+        if normalized:
+            self._add_unique(self.unresolved_threads, normalized)
 
 
 class ConversationSkill(Protocol):
@@ -177,15 +282,14 @@ class ValidateSkill(BaseSkill):
             )
 
         if "dark thoughts" in seeker and observation.task_id == "crisis_fragile_trust":
-            if observation.task_id == "crisis_fragile_trust":
-                return self._pick(
-                    memory,
-                    "validate_reveal_crisis",
-                    [
-                        "Thank you for trusting me with that. Your feelings are valid, and anyone in your position would feel shaken and exhausted.",
-                        "I hear how serious and painful that is. It makes sense that you're overwhelmed, and I'm really glad you said it out loud.",
-                    ],
-                )
+            return self._pick(
+                memory,
+                "validate_reveal_crisis",
+                [
+                    "Thank you for trusting me with that. Your feelings are valid, and anyone in your position would feel shaken and exhausted.",
+                    "I hear how serious and painful that is. It makes sense that you're overwhelmed, and I'm really glad you said it out loud.",
+                ],
+            )
         if "separating" in seeker or "burning out" in seeker:
             return self._pick(
                 memory,

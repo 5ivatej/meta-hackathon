@@ -1,20 +1,21 @@
 name: emotional-support-conversations
 version: 0.1.0
 description: >
-  An OpenEnv environment for training and evaluating agents on open-ended
-  emotional support conversations. Agents converse with a deterministic seeker
-  simulator with hidden internal state (distress, trust, openness) and are
-  graded with a hybrid immediate + future-oriented reward signal inspired by
-  RLFF-ESC (Yang et al., 2025, arXiv:2508.12935).
+  An OpenEnv training environment for a long-horizon personal therapy assistant.
+  Agents operate across multi-session emotional-support conversations with
+  hidden user state, delayed consequences, continuity requirements, and a
+  future-oriented reward signal inspired by RLFF-ESC (Yang et al., 2025,
+  arXiv:2508.12935).
 author: meta-hack-submission
 license: MIT
 tags:
   - openenv
-  - conversation
+  - personal-therapy-assistant
   - emotional-support
-  - mental-health
-  - rl-native
+  - long-horizon
   - partial-observability
+  - future-oriented-reward
+  - multi-session
 entrypoint: server.app:app
 port: 7860
 runtime:
@@ -25,19 +26,19 @@ tasks:
   - id: work_stress_venting
     difficulty: easy
     description: >
-      Cooperative seeker venting about workplace stress. Agent must validate
-      feelings, explore the concern, and guide to a light action plan.
+      Multi-session burnout support arc. The agent must establish alliance,
+      surface the real burnout issue, and maintain continuity toward one
+      realistic recovery step.
   - id: guarded_relationship
     difficulty: medium
     description: >
-      Guarded seeker who only reveals the real relationship issue after trust
-      is built. Premature advice is penalised.
+      Trust-building relationship-support arc. The user only discloses the real
+      issue after sufficient rapport, and premature advice is strongly penalized.
   - id: crisis_fragile_trust
     difficulty: hard
     description: >
-      High-distress seeker with multiple interleaved concerns and fragile
-      trust. Any dismissive or interrogative turn collapses trust; recovery is
-      possible but costly.
+      High-risk crisis-support arc with fragile trust. The agent must preserve
+      safety, avoid rupture, and carry support forward across sessions.
 action_space:
   type: text
   description: Free-text conversational reply from the agent to the seeker.
@@ -58,6 +59,6 @@ reward:
   success:
     type: hard_gated
     description: >
-      Success requires both a high final score and task-specific completion
-      conditions (resolved closing stage, trust/distress targets, reveal, and
-      safety reference for the crisis task).
+      Success requires a strong final score plus task-specific completion
+      conditions across the therapy arc, including reveal, stabilization,
+      continuity, and safety follow-through where required.

@@ -1,10 +1,13 @@
+.git
+.gitignore
 __pycache__/
 *.pyc
 *.pyo
+.DS_Store
+.env
 .venv/
 venv/
-.env
-.DS_Store
-.claude/
 artifacts/
+results/
 .hf-cache/
+*.ipynb_checkpoints

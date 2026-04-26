@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "emotional-support-conversations"
 version = "0.1.0"
-description = "OpenEnv environment for evaluating agents on emotional support conversations."
+description = "OpenEnv training environment for a long-horizon personal therapy assistant."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,13 +15,28 @@ dependencies = [
   "pydantic==2.9.2",
   "httpx==0.27.2",
   "openai>=2.7.2,<3",
+  "torch>=2.2",
+  "transformers>=4.46",
+  "datasets>=3.0",
+  "trl>=0.11",
+  "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+training = [
+  "datasets>=3.0.0",
+  "transformers>=4.52.0",
+  "accelerate>=1.0.0",
+  "trl>=0.19.0",
+  "peft>=0.13.0",
+  "torch>=2.4.0",
 ]
 
 [project.scripts]
 server = "server.app:main"
-
-[tool.setuptools]
-py-modules = ["inference", "benchmark", "benchmark_agentic", "benchmark_agentic_llm", "benchmark_llm"]
+simulate-dialogues = "training.simulate_dialogues:main"
+train-reward-model = "training.reward_model:main"
+train-grpo-policy = "training.grpo_policy:main"
 
 [tool.setuptools.packages.find]
-include = ["src*", "server*"]
+include = ["src*", "server*", "training*"]

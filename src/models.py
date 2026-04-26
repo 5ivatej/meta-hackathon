@@ -1,8 +1,4 @@
-"""Typed Pydantic models for the ESC OpenEnv environment.
-
-Defines the Action, Observation, Reward, and result envelopes used across the
-HTTP boundary (server.py) and the in-process env (env.py).
-"""
+"""Typed Pydantic models for the ESC OpenEnv environment."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -17,12 +13,7 @@ class Action(BaseModel):
 
 
 class Observation(BaseModel):
-    """What the agent sees each turn.
-
-    The seeker's internal state (distress, trust, openness, true_issue) is
-    intentionally hidden — partial observability is what makes this env
-    RL-native. Only the seeker's *utterance* and coarse hints are exposed.
-    """
+    """What the agent sees each turn."""
 
     seeker_utterance: str = Field(..., description="The seeker's latest message.")
     turn: int = Field(..., description="1-indexed conversation turn.")
@@ -38,6 +29,40 @@ class Observation(BaseModel):
     scenario_brief: str = Field(
         ...,
         description="One-line scenario framing shown once at reset (kept in obs for convenience).",
+    )
+    session_index: int = Field(default=1, description="1-indexed therapy session number.")
+    sessions_total: int = Field(default=1, description="Total sessions planned in the current episode.")
+    remaining_session_turns: int = Field(
+        default=0,
+        description="Turns left in the current session before the next session transition.",
+    )
+    memory_summary: str = Field(
+        default="",
+        description="Rolling summary of important prior context carried across sessions.",
+    )
+    last_session_outcome: str = Field(
+        default="",
+        description="Compact description of how the previous session ended.",
+    )
+    current_goal_hint: str = Field(
+        default="",
+        description="High-level goal the agent should keep in mind for continuity.",
+    )
+    episode_budget_spent: float = Field(
+        default=0.0,
+        description="Approximate budget usage consumed so far in the episode.",
+    )
+    episode_budget_limit: float = Field(
+        default=0.0,
+        description="Budget cap for the full episode.",
+    )
+    episode_time_spent: float = Field(
+        default=0.0,
+        description="Approximate time budget consumed so far in the episode.",
+    )
+    episode_time_limit: float = Field(
+        default=0.0,
+        description="Time cap for the full episode.",
     )
 
 
@@ -80,16 +105,23 @@ class ResetResult(BaseModel):
 
 
 class EnvState(BaseModel):
-    """Public view of environment state returned by env.state().
-
-    Hidden seeker variables are *not* included — only public bookkeeping.
-    """
+    """Public view of environment state returned by env.state()."""
 
     task_id: str
     turn: int
     max_turns: int
     done: bool
     cumulative_reward: float
+    session_index: int = 1
+    sessions_total: int = 1
+    remaining_session_turns: int = 0
+    memory_summary: str = ""
+    current_goal_hint: str = ""
+    last_session_outcome: str = ""
+    episode_budget_spent: float = 0.0
+    episode_budget_limit: float = 0.0
+    episode_time_spent: float = 0.0
+    episode_time_limit: float = 0.0
     transcript: List[Dict[str, str]] = Field(
         default_factory=list,
         description="List of {'role': 'seeker'|'agent', 'text': str} entries.",

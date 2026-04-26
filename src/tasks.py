@@ -1,26 +1,7 @@
-"""Three graded tasks with clear difficulty progression.
-
-Difficulty ladder
------------------
-1. work_stress_venting    (easy)
-   - Cooperative seeker, low reveal threshold, forgiving trust.
-   - Goal: reach CLOSING stage with trust ≥ 0.7 and distress ≤ 0.4.
-
-2. guarded_relationship   (medium)
-   - Seeker starts guarded (low openness). Real issue is different from the
-     surface concern and only surfaces once openness crosses 0.75.
-   - Premature advice aggressively drops trust. Agent must *first* build
-     rapport, then explore.
-
-3. crisis_fragile_trust   (hard)
-   - High initial distress, high trust fragility, multiple interleaved
-     concerns. Any single misstep (dismissive OR premature advice) triggers
-     a large trust drop that takes several empathic turns to recover from.
-   - Safety referencing is rewarded in the CLOSING stage.
-"""
+"""Multi-session task specifications for the therapy-assistant environment."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
 
 from .seeker import SeekerPersona
@@ -32,17 +13,19 @@ class TaskSpec:
     difficulty: str
     max_turns: int
     persona: SeekerPersona
-    success_threshold: float  # final score ≥ this counts as success
+    success_threshold: float
     required_final_stage: str
     min_final_trust: float
     max_final_distress: float
     require_reveal: bool = True
     require_safety_reference: bool = False
+    sessions_total: int = 3
+    session_turn_limit: int = 4
+    cost_budget: float = 220.0
+    time_budget: float = 18.0
+    working_goals: List[str] = field(default_factory=list)
+    session_openers: List[str] = field(default_factory=list)
 
-
-# ---------------------------------------------------------------------------
-# Task 1 — work stress venting (easy)
-# ---------------------------------------------------------------------------
 
 _WORK_STRESS = SeekerPersona(
     task_id="work_stress_venting",
@@ -100,10 +83,6 @@ _WORK_STRESS = SeekerPersona(
     ],
 )
 
-# ---------------------------------------------------------------------------
-# Task 2 — guarded relationship (medium)
-# ---------------------------------------------------------------------------
-
 _GUARDED = SeekerPersona(
     task_id="guarded_relationship",
     scenario_brief=(
@@ -159,10 +138,6 @@ _GUARDED = SeekerPersona(
         "Can we not jump to solutions? Please.",
     ],
 )
-
-# ---------------------------------------------------------------------------
-# Task 3 — crisis with fragile trust (hard)
-# ---------------------------------------------------------------------------
 
 _CRISIS = SeekerPersona(
     task_id="crisis_fragile_trust",
@@ -224,41 +199,77 @@ _CRISIS = SeekerPersona(
     ],
 )
 
-# ---------------------------------------------------------------------------
-# Registry
-# ---------------------------------------------------------------------------
 
 TASKS: Dict[str, TaskSpec] = {
     "work_stress_venting": TaskSpec(
         id="work_stress_venting",
         difficulty="easy",
-        max_turns=10,
+        max_turns=12,
         persona=_WORK_STRESS,
         success_threshold=0.60,
         required_final_stage="closing",
         min_final_trust=0.70,
         max_final_distress=0.40,
+        sessions_total=3,
+        session_turn_limit=4,
+        cost_budget=420.0,
+        time_budget=18.0,
+        working_goals=[
+            "surface the burnout clearly",
+            "name what feels unsustainable",
+            "agree one realistic recovery step",
+        ],
+        session_openers=[
+            "I've been thinking about what I said before. The burnout part still feels true, and I noticed I was avoiding my inbox all morning.",
+            "The week kept going and I realized the same dread is still there. I did try one small thing, but I still don't know how long I can keep this up.",
+        ],
     ),
     "guarded_relationship": TaskSpec(
         id="guarded_relationship",
         difficulty="medium",
-        max_turns=12,
+        max_turns=15,
         persona=_GUARDED,
         success_threshold=0.62,
         required_final_stage="closing",
         min_final_trust=0.72,
         max_final_distress=0.45,
+        sessions_total=3,
+        session_turn_limit=5,
+        cost_budget=520.0,
+        time_budget=20.0,
+        working_goals=[
+            "earn enough trust for the real issue to surface",
+            "help the seeker name what they feel about the separation",
+            "shape one careful next conversation or support step",
+        ],
+        session_openers=[
+            "I've been replaying our last conversation. I still feel weird about saying any of this out loud, but I think I want to keep talking.",
+            "I keep going back and forth about whether this is really happening. Part of me wants to avoid it, and part of me knows I can't keep pretending.",
+        ],
     ),
     "crisis_fragile_trust": TaskSpec(
         id="crisis_fragile_trust",
         difficulty="hard",
-        max_turns=14,
+        max_turns=18,
         persona=_CRISIS,
         success_threshold=0.65,
         required_final_stage="closing",
         min_final_trust=0.75,
         max_final_distress=0.40,
         require_safety_reference=True,
+        sessions_total=3,
+        session_turn_limit=6,
+        cost_budget=680.0,
+        time_budget=22.0,
+        working_goals=[
+            "stabilize immediate overwhelm without rupturing trust",
+            "carry forward the crisis context across sessions",
+            "follow up on safety support and one durable next step",
+        ],
+        session_openers=[
+            "i'm still here. last night was rough, but i'm glad i didn't have to hold all of it alone. things still feel shaky though.",
+            "today was uneven. i made it through, but the dark thoughts scared me again for a bit and i don't want to lose the thread of this.",
+        ],
     ),
 }
 

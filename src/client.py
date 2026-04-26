@@ -1,8 +1,4 @@
-"""Async HTTP client mirroring the OpenEnv env interface.
-
-Used by inference.py to interact with the running FastAPI server (local or
-HF Space deployment).
-"""
+"""Async HTTP client mirroring the OpenEnv environment interface."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -67,6 +63,14 @@ class ESCHttpClient:
         r = await self._client.get("/state")
         r.raise_for_status()
         return r.json()
+
+    def export_session_token(self) -> Optional[str]:
+        return self._client.cookies.get("esc_session_id")
+
+    def import_session_token(self, token: Optional[str]) -> None:
+        if not token:
+            return
+        self._client.cookies.set("esc_session_id", token)
 
     async def close(self) -> None:
         await self._client.aclose()
